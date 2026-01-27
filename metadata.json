@@ -1,0 +1,5 @@
+{
+  "name": "Daily Task Scheduler",
+  "description": "A high-fidelity mobile-first task scheduler with active task highlighting, real-time clock, and a global emergency broadcast system.",
+  "requestFramePermissions": []
+}
