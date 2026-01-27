@@ -1,5 +1,5 @@
 
-import { Task, EmergencyMessage } from '../types';
+import { Task, EmergencyMessage, WelcomeTask } from '../types';
 import { supabase } from './supabase';
 
 export const storageService = {
@@ -9,11 +9,7 @@ export const storageService = {
       .select('*')
       .order('time_block', { ascending: true });
     
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      return [];
-    }
-
+    if (error) return [];
     return (data || []).map(t => ({
       id: t.id,
       date: t.date,
@@ -37,25 +33,12 @@ export const storageService = {
 
     let result;
     if (task.id) {
-      result = await supabase
-        .from('tasks')
-        .update(payload)
-        .eq('id', task.id)
-        .select()
-        .single();
+      result = await supabase.from('tasks').update(payload).eq('id', task.id).select().single();
     } else {
-      result = await supabase
-        .from('tasks')
-        .insert([payload])
-        .select()
-        .single();
+      result = await supabase.from('tasks').insert([payload]).select().single();
     }
 
-    if (result.error) {
-      console.error('Error saving task:', result.error);
-      return null;
-    }
-
+    if (result.error) return null;
     const t = result.data;
     return {
       id: t.id,
@@ -69,29 +52,56 @@ export const storageService = {
   },
 
   deleteTask: async (id: string): Promise<boolean> => {
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    return !error;
+  },
+
+  // Welcome Task Methods
+  getWelcomeTasks: async (): Promise<WelcomeTask[]> => {
+    const { data, error } = await supabase.from('welcome_tasks').select('*').order('created_at', { ascending: false });
+    if (error) return [];
+    return (data || []).map(d => ({
+      id: d.id,
+      topText: d.top_text,
+      bottomText1: d.bottom_text_1,
+      bottomText2: d.bottom_text_2,
+      bottomText3: d.bottom_text_3,
+      imageData: d.image_data,
+      isActive: d.is_active
+    }));
+  },
+
+  saveWelcomeTask: async (wt: Partial<WelcomeTask>): Promise<boolean> => {
+    const payload = {
+      top_text: wt.topText,
+      bottom_text_1: wt.bottomText1,
+      bottom_text_2: wt.bottomText2,
+      bottom_text_3: wt.bottomText3,
+      image_data: wt.imageData
+    };
+    const { error } = await supabase.from('welcome_tasks').insert([payload]);
+    return !error;
+  },
+
+  setWelcomeActive: async (id: string, active: boolean): Promise<boolean> => {
+    // First, deactivate all
+    await supabase.from('welcome_tasks').update({ is_active: false }).neq('id', '00000000-0000-0000-0000-000000000000');
     
-    if (error) {
-      console.error('Error deleting task:', error);
-      return false;
+    if (active) {
+      const { error } = await supabase.from('welcome_tasks').update({ is_active: true }).eq('id', id);
+      return !error;
     }
     return true;
   },
 
-  getEmergencies: async (): Promise<EmergencyMessage[]> => {
-    const { data, error } = await supabase
-      .from('emergencies')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching emergencies:', error);
-      return [];
-    }
+  deleteWelcomeTask: async (id: string): Promise<boolean> => {
+    const { error } = await supabase.from('welcome_tasks').delete().eq('id', id);
+    return !error;
+  },
 
+  getEmergencies: async (): Promise<EmergencyMessage[]> => {
+    const { data, error } = await supabase.from('emergencies').select('*').order('created_at', { ascending: false });
+    if (error) return [];
     return (data || []).map(e => ({
       id: e.id,
       text: e.text,
@@ -100,17 +110,8 @@ export const storageService = {
   },
 
   broadcastEmergency: async (text: string): Promise<EmergencyMessage | null> => {
-    const { data, error } = await supabase
-      .from('emergencies')
-      .insert([{ text }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error broadcasting emergency:', error);
-      return null;
-    }
-
+    const { data, error } = await supabase.from('emergencies').insert([{ text }]).select().single();
+    if (error) return null;
     return {
       id: data.id,
       text: data.text,

@@ -6,17 +6,28 @@ export interface Task {
   title: string;
   venue: string;
   remarks?: string;
-  attended?: string; // Changed to string
+  attended?: string;
+}
+
+export interface WelcomeTask {
+  id: string;
+  topText: string;
+  bottomText1: string;
+  bottomText2: string;
+  bottomText3: string;
+  imageData: string; // Base64
+  isActive: boolean;
 }
 
 export interface EmergencyMessage {
   id: string;
   text: string;
-  createdAt: number; // timestamp
+  createdAt: number;
 }
 
 export enum Tab {
   TASKS = 'tasks',
+  WELCOME = 'welcome',
   EMERGENCY = 'emergency'
 }
 
