@@ -123,12 +123,18 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
         </form>
       )}
 
-      <div className="grid gap-5">
+      <div className="grid gap-6">
         {tasks.map(t => (
           <div key={t.id} className={`bg-white p-5 rounded-[2.5rem] border-2 transition-all flex items-center gap-5 ${t.isActive ? 'border-emerald-400 bg-emerald-50 ring-8 ring-emerald-50/50 shadow-2xl' : 'border-white shadow-sm hover:border-slate-100'}`}>
-            <div className="w-24 h-24 rounded-3xl overflow-hidden shrink-0 border border-slate-100 shadow-inner">
-              <img src={t.imageData} className="w-full h-full object-cover" />
+            <div className="relative shrink-0">
+               {/* Glowing Background Effect */}
+               <div className="absolute -inset-1.5 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-[2rem] blur-lg opacity-30 animate-pulse" />
+               
+               <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden border-2 border-white shadow-inner bg-slate-100">
+                 <img src={t.imageData} className="w-full h-full object-cover" />
+               </div>
             </div>
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md uppercase tracking-wider">{t.topText}</span>
@@ -150,7 +156,7 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
                     e.stopPropagation();
                     onDelete(t.id);
                   }} 
-                  className="bg-white text-rose-500 p-3 rounded-xl hover:bg-rose-50 transition-all border border-slate-200 shadow-md active:scale-90 z-20 cursor-pointer"
+                  className="bg-white text-rose-500 p-3 rounded-xl hover:bg-rose-50 transition-all border border-slate-200 shadow-sm active:scale-90 z-20 cursor-pointer"
                   title="Delete Template"
                 >
                   <Trash2 size={18} strokeWidth={2.5} />

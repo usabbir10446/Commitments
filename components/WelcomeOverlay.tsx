@@ -13,7 +13,7 @@ const WelcomeOverlay: React.FC<WelcomeOverlayProps> = ({ task, onStop }) => {
 
   return (
     <div className="fixed inset-0 z-[120] bg-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-500 overflow-hidden">
-      {/* Absolute Stop Button (Only visible to controllers usually, but here for demo) */}
+      {/* Absolute Stop Button */}
       <div className="absolute top-8 right-8 z-[130]">
          <button 
            onClick={onStop}
@@ -24,31 +24,32 @@ const WelcomeOverlay: React.FC<WelcomeOverlayProps> = ({ task, onStop }) => {
       </div>
 
       <div className="w-full max-w-2xl flex flex-col items-center">
-        {/* Main Image Container with Text Overlay */}
-        <div className="relative w-full aspect-[4/5] max-w-md rounded-[3.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] mb-12 group">
+        {/* Top Text - Moved above the image */}
+        <div className="mb-10 animate-in slide-in-from-top-10 duration-700 delay-100">
+          <h1 className="text-6xl font-black text-indigo-900 tracking-tighter uppercase italic drop-shadow-sm">
+            {task.topText || 'WELCOME'}
+          </h1>
+          <div className="h-2 w-32 bg-indigo-500 mx-auto rounded-full mt-2" />
+        </div>
+
+        {/* Main Image Container */}
+        <div className="relative w-full aspect-[4/5] max-w-sm rounded-[3.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(79,70,229,0.3)] mb-12 group animate-in zoom-in-90 duration-700">
           <img 
             src={task.imageData} 
             alt="Welcome" 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
-          {/* Top Text Overlay */}
-          <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/60 to-transparent pt-12 pb-20 px-6">
-            <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic drop-shadow-2xl">
-              {task.topText || 'WELCOME'}
-            </h1>
-          </div>
         </div>
 
         {/* Bottom Text Content */}
-        <div className="space-y-6 max-w-lg">
+        <div className="space-y-6 max-w-lg animate-in slide-in-from-bottom-10 duration-700 delay-200">
           <div className="space-y-2">
-            <p className="text-4xl font-black text-slate-900 leading-tight tracking-tight">
+            <p className="text-4xl font-black text-slate-900 leading-tight tracking-tight px-4">
               {task.bottomText1}
             </p>
-            <div className="h-1.5 w-24 bg-indigo-600 mx-auto rounded-full" />
           </div>
           
-          <p className="text-2xl font-bold text-slate-600 leading-relaxed">
+          <p className="text-2xl font-bold text-slate-600 leading-relaxed px-6">
             {task.bottomText2}
           </p>
           

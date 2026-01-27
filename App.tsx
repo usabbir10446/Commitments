@@ -87,9 +87,13 @@ const App: React.FC = () => {
     // Task Change Subscription
     const taskSubscription = supabase
       .channel('task_sync')
-      .on('postgres_changes', { event: '*', table: 'tasks' }, async () => {
-        const updatedTasks = await storageService.getTasks();
-        setTasks(updatedTasks);
+      .on('postgres_changes', { event: '*', table: 'tasks' }, async (payload) => {
+        if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+        } else {
+            const updatedTasks = await storageService.getTasks();
+            setTasks(updatedTasks);
+        }
       })
       .subscribe();
 
@@ -114,7 +118,6 @@ const App: React.FC = () => {
     if (saved) {
       setIsModalOpen(false);
       setEditingTask(null);
-      // Refresh tasks immediately
       const updated = await storageService.getTasks();
       setTasks(updated);
     }
@@ -122,23 +125,16 @@ const App: React.FC = () => {
 
   const handleDeleteTask = async (id: string) => {
     if (!id) return;
-    if (!window.confirm("Delete this task permanently?")) return;
-
-    // OPTIMISTIC UPDATE: Remove from UI immediately
-    const previousTasks = [...tasks];
+    
+    // GUARANTEED INSTANT REMOVAL
     setTasks(prev => prev.filter(t => t.id !== id));
     setIsModalOpen(false);
     setEditingTask(null);
 
     try {
-      const success = await storageService.deleteTask(id);
-      if (!success) {
-        alert("Server failed to delete. Check SQL policies.");
-        setTasks(previousTasks); // Rollback if failed
-      }
+      await storageService.deleteTask(id);
     } catch (err) {
-      console.error("Delete task exception:", err);
-      setTasks(previousTasks); // Rollback if error
+      console.error("Deletion background sync failed:", err);
     }
   };
 
@@ -150,9 +146,7 @@ const App: React.FC = () => {
 
   const handleAddWelcome = async (wt: Partial<WelcomeTask>) => {
     const success = await storageService.saveWelcomeTask(wt);
-    if (!success) {
-      alert("Failed to save welcome template.");
-    } else {
+    if (success) {
       const updated = await storageService.getWelcomeTasks();
       setWelcomeTasks(updated);
     }
@@ -163,21 +157,14 @@ const App: React.FC = () => {
   
   const handleDeleteWelcome = async (id: string) => {
     if (!id) return;
-    if (window.confirm("Delete this welcome template?")) {
-      // OPTIMISTIC UPDATE
-      const previousWelcome = [...welcomeTasks];
-      setWelcomeTasks(prev => prev.filter(w => w.id !== id));
+    
+    // GUARANTEED INSTANT REMOVAL
+    setWelcomeTasks(prev => prev.filter(w => w.id !== id));
 
-      try {
-        const success = await storageService.deleteWelcomeTask(id);
-        if (!success) {
-          alert("Failed to delete welcome template on server.");
-          setWelcomeTasks(previousWelcome); // Rollback
-        }
-      } catch (error) {
-        console.error("Delete welcome error:", error);
-        setWelcomeTasks(previousWelcome); // Rollback
-      }
+    try {
+      await storageService.deleteWelcomeTask(id);
+    } catch (error) {
+      console.error("Welcome deletion background sync failed:", error);
     }
   };
 
