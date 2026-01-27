@@ -1,5 +1,5 @@
 
--- 1. Create tables if they don't exist
+-- 1. Create tables
 CREATE TABLE IF NOT EXISTS public.tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -33,69 +33,44 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emergencies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.welcome_tasks ENABLE ROW LEVEL SECURITY;
 
--- 3. Idempotent Policy Creation
+-- 3. Reset and Create Policies (Tasks)
+DROP POLICY IF EXISTS "Allow anon select on tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow anon insert on tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow anon update on tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow anon delete on tasks" ON public.tasks;
+
+CREATE POLICY "Allow anon select on tasks" ON public.tasks FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert on tasks" ON public.tasks FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anon update on tasks" ON public.tasks FOR UPDATE USING (true);
+CREATE POLICY "Allow anon delete on tasks" ON public.tasks FOR DELETE USING (true);
+
+-- 4. Reset and Create Policies (Emergencies)
+DROP POLICY IF EXISTS "Allow anon select on emergencies" ON public.emergencies;
+DROP POLICY IF EXISTS "Allow anon insert on emergencies" ON public.emergencies;
+
+CREATE POLICY "Allow anon select on emergencies" ON public.emergencies FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert on emergencies" ON public.emergencies FOR INSERT WITH CHECK (true);
+
+-- 5. Reset and Create Policies (Welcome Tasks)
+DROP POLICY IF EXISTS "Allow anon select on welcome_tasks" ON public.welcome_tasks;
+DROP POLICY IF EXISTS "Allow anon insert on welcome_tasks" ON public.welcome_tasks;
+DROP POLICY IF EXISTS "Allow anon update on welcome_tasks" ON public.welcome_tasks;
+DROP POLICY IF EXISTS "Allow anon delete on welcome_tasks" ON public.welcome_tasks;
+
+CREATE POLICY "Allow anon select on welcome_tasks" ON public.welcome_tasks FOR SELECT USING (true);
+CREATE POLICY "Allow anon insert on welcome_tasks" ON public.welcome_tasks FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anon update on welcome_tasks" ON public.welcome_tasks FOR UPDATE USING (true);
+CREATE POLICY "Allow anon delete on welcome_tasks" ON public.welcome_tasks FOR DELETE USING (true);
+
+-- 6. Enable Realtime (Non-destructive)
 DO $$
 BEGIN
-    -- Tasks Policies
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon select on tasks') THEN
-        CREATE POLICY "Allow anon select on tasks" ON public.tasks FOR SELECT USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon insert on tasks') THEN
-        CREATE POLICY "Allow anon insert on tasks" ON public.tasks FOR INSERT WITH CHECK (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon update on tasks') THEN
-        CREATE POLICY "Allow anon update on tasks" ON public.tasks FOR UPDATE USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon delete on tasks') THEN
-        CREATE POLICY "Allow anon delete on tasks" ON public.tasks FOR DELETE USING (true);
-    END IF;
-
-    -- Emergencies Policies
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon select on emergencies') THEN
-        CREATE POLICY "Allow anon select on emergencies" ON public.emergencies FOR SELECT USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon insert on emergencies') THEN
-        CREATE POLICY "Allow anon insert on emergencies" ON public.emergencies FOR INSERT WITH CHECK (true);
-    END IF;
-
-    -- Welcome Tasks Policies
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon select on welcome_tasks') THEN
-        CREATE POLICY "Allow anon select on welcome_tasks" ON public.welcome_tasks FOR SELECT USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon insert on welcome_tasks') THEN
-        CREATE POLICY "Allow anon insert on welcome_tasks" ON public.welcome_tasks FOR INSERT WITH CHECK (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon update on welcome_tasks') THEN
-        CREATE POLICY "Allow anon update on welcome_tasks" ON public.welcome_tasks FOR UPDATE USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon delete on welcome_tasks') THEN
-        CREATE POLICY "Allow anon delete on welcome_tasks" ON public.welcome_tasks FOR DELETE USING (true);
-    END IF;
-END
-$$;
-
--- 4. Safe Realtime setup
-DO $$
-BEGIN
-    -- Ensure publication exists
     IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
         CREATE PUBLICATION supabase_realtime;
     END IF;
+END $$;
 
-    -- Add tables to publication (ignoring errors if already added)
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END;
-
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.emergencies;
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END;
-
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.welcome_tasks;
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END;
-END
-$$;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.emergencies;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.welcome_tasks;
+-- Ignore errors if tables were already added

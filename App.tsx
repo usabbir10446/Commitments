@@ -10,7 +10,7 @@ import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
-import { Calendar, AlertCircle, Plus, Printer, Send, Loader2, Search, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Printer, Send, Search, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -114,6 +114,9 @@ const App: React.FC = () => {
     if (saved) {
       setIsModalOpen(false);
       setEditingTask(null);
+      // Refresh tasks immediately
+      const updated = await storageService.getTasks();
+      setTasks(updated);
     }
   };
 
@@ -128,7 +131,7 @@ const App: React.FC = () => {
         setIsModalOpen(false);
         setEditingTask(null);
       } else {
-        alert("Delete failed on server. Please try again.");
+        alert("Delete failed on server. Please check your SQL policies.");
       }
     } catch (err) {
       console.error("Delete task exception:", err);
@@ -144,20 +147,29 @@ const App: React.FC = () => {
 
   const handleAddWelcome = async (wt: Partial<WelcomeTask>) => {
     const success = await storageService.saveWelcomeTask(wt);
-    if (!success) alert("Failed to save welcome template.");
+    if (!success) {
+      alert("Failed to save welcome template.");
+    } else {
+      const updated = await storageService.getWelcomeTasks();
+      setWelcomeTasks(updated);
+    }
   };
 
   const handleStartWelcome = (id: string) => storageService.setWelcomeActive(id, true);
   const handleStopWelcome = () => storageService.setWelcomeActive('', false);
   
-  // Fixed: handleWelcomeDelete to be async and update state immediately
   const handleDeleteWelcome = async (id: string) => {
+    if (!id) return;
     if (window.confirm("Delete this welcome template?")) {
-      const success = await storageService.deleteWelcomeTask(id);
-      if (success) {
-        setWelcomeTasks(prev => prev.filter(w => w.id !== id));
-      } else {
-        alert("Failed to delete welcome template.");
+      try {
+        const success = await storageService.deleteWelcomeTask(id);
+        if (success) {
+          setWelcomeTasks(prev => prev.filter(w => w.id !== id));
+        } else {
+          alert("Failed to delete welcome template on server.");
+        }
+      } catch (error) {
+        console.error("Delete welcome error:", error);
       }
     }
   };
