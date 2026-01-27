@@ -1,5 +1,5 @@
 
-import { Task, TaskStatus } from '../types';
+import { Task, TaskStatus } from '../types.ts';
 
 /**
  * Parses a time block string like "0900-1000 hrs" into start and end times

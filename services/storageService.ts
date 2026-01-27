@@ -1,6 +1,6 @@
 
-import { Task, EmergencyMessage, WelcomeTask } from '../types';
-import { supabase } from './supabase';
+import { Task, EmergencyMessage, WelcomeTask } from '../types.ts';
+import { supabase } from './supabase.ts';
 
 export const storageService = {
   getTasks: async (): Promise<Task[]> => {

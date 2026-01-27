@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types';
-import { storageService } from './services/storageService';
-import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, formatFriendlyDate } from './utils/time';
-import { supabase } from './services/supabase';
-import LiveClock from './components/LiveClock';
-import TaskCard from './components/TaskCard';
-import TaskModal from './components/TaskModal';
-import EmergencyOverlay from './components/EmergencyOverlay';
-import WelcomeOverlay from './components/WelcomeOverlay';
-import WelcomeTab from './components/WelcomeTab';
+import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types.ts';
+import { storageService } from './services/storageService.ts';
+import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, formatFriendlyDate } from './utils/time.ts';
+import { supabase } from './services/supabase.ts';
+import LiveClock from './components/LiveClock.tsx';
+import TaskCard from './components/TaskCard.tsx';
+import TaskModal from './components/TaskModal.tsx';
+import EmergencyOverlay from './components/EmergencyOverlay.tsx';
+import WelcomeOverlay from './components/WelcomeOverlay.tsx';
+import WelcomeTab from './components/WelcomeTab.tsx';
 import { Calendar, AlertCircle, Plus, Printer, Send, Search, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import html2canvas from 'html2canvas';
 

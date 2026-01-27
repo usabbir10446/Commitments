@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Trash2 } from 'lucide-react';
-import { Task } from '../types';
-import { getTomorrowString } from '../utils/time';
+import { Task } from '../types.ts';
+import { getTomorrowString } from '../utils/time.ts';
 
 interface TaskModalProps {
   task?: Task | null;
