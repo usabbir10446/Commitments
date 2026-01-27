@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Tab, Task, EmergencyMessage, TaskStatus } from './types';
+import { Tab, Task, TaskStatus, EmergencyMessage } from './types';
 import { storageService } from './services/storageService';
-import { getCurrentMinutesFromMidnight, getTaskStatus, getTodayString, getTomorrowString, formatFriendlyDate } from './utils/time';
+import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, getTomorrowString, formatFriendlyDate } from './utils/time';
 import { supabase } from './services/supabase';
 import LiveClock from './components/LiveClock';
 import TaskCard from './components/TaskCard';
@@ -26,14 +26,10 @@ const App: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [emergencyInput, setEmergencyInput] = useState('');
   
-  // View Control (Main Screen)
-  const [viewDate, setViewDate] = useState(getTomorrowString());
-  
-  // Search Controls (Archive Modal)
+  const [viewDate, setViewDate] = useState(getTodayString()); 
   const [searchDate, setSearchDate] = useState(getTodayString());
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Initial Data Load
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -48,7 +44,6 @@ const App: React.FC = () => {
 
     loadData();
 
-    // Subscribe to Real-time Emergencies
     const emergencySubscription = supabase
       .channel('emergency_broadcasts')
       .on('postgres_changes', { event: 'INSERT', table: 'emergencies' }, (payload) => {
@@ -57,17 +52,14 @@ const App: React.FC = () => {
           text: payload.new.text,
           createdAt: new Date(payload.new.created_at).getTime()
         };
-        
         setEmergencies(prev => [newMsg, ...prev]);
         setActiveEmergency(newMsg);
-        
         setTimeout(() => {
           setActiveEmergency(prev => prev?.id === newMsg.id ? null : prev);
         }, 10000);
       })
       .subscribe();
 
-    // Subscribe to Task Changes
     const taskSubscription = supabase
       .channel('task_sync')
       .on('postgres_changes', { event: '*', table: 'tasks' }, async () => {
@@ -78,7 +70,7 @@ const App: React.FC = () => {
 
     const statusTimer = setInterval(() => {
       setCurrentMinutes(getCurrentMinutesFromMidnight());
-    }, 30000);
+    }, 10000);
 
     return () => {
       clearInterval(statusTimer);
@@ -98,7 +90,6 @@ const App: React.FC = () => {
       ...taskData,
       id: editingTask?.id
     });
-    
     if (saved) {
       setIsModalOpen(false);
       setEditingTask(null);
@@ -106,53 +97,83 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTask = async (id: string) => {
-    const confirmed = window.confirm("Are you sure you want to delete this task? This action cannot be undone.");
+    if (!id) return;
+    const confirmed = window.confirm("Delete this task permanently?");
     if (!confirmed) return;
 
-    const success = await storageService.deleteTask(id);
-    if (success) {
-      // Optimistically update the UI
+    try {
       setTasks(prev => prev.filter(t => t.id !== id));
-    } else {
-      alert("Failed to delete task. Please check your connection.");
+      const success = await storageService.deleteTask(id);
+      if (success) {
+        setIsModalOpen(false);
+        setEditingTask(null);
+      } else {
+        const updatedTasks = await storageService.getTasks();
+        setTasks(updatedTasks);
+        alert("Failed to delete record from server.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      const updatedTasks = await storageService.getTasks();
+      setTasks(updatedTasks);
     }
   };
 
-  // Logic for main schedule view
   const homepageTasks = useMemo(() => {
-    return tasks
-      .filter(t => t.date === viewDate)
-      .map(t => ({ ...t, status: getTaskStatus(t, currentMinutes, t.date === getTodayString()) }))
-      .sort((a, b) => {
-        if (a.status === TaskStatus.ACTIVE) return -1;
-        if (b.status === TaskStatus.ACTIVE) return 1;
-        return a.timeBlock.localeCompare(b.timeBlock);
-      });
+    const isToday = viewDate === getTodayString();
+    const dayTasks = tasks.filter(t => t.date === viewDate);
+    
+    const mappedTasks = dayTasks.map(t => ({
+      ...t,
+      times: parseTimeBlock(t.timeBlock)
+    }));
+
+    let activeTaskId: string | null = null;
+    if (isToday) {
+      const ongoing = mappedTasks
+        .filter(t => currentMinutes >= t.times.start && currentMinutes < t.times.end)
+        .sort((a, b) => a.times.start - b.times.start);
+      
+      if (ongoing.length > 0) {
+        activeTaskId = ongoing[0].id;
+      }
+    }
+
+    return mappedTasks.map(t => {
+      let status = TaskStatus.UPCOMING;
+      if (t.id === activeTaskId) {
+        status = TaskStatus.ACTIVE;
+      } else if (currentMinutes >= t.times.end && isToday) {
+        status = TaskStatus.COMPLETED;
+      } else if (new Date(t.date) < new Date(getTodayString())) {
+        status = TaskStatus.COMPLETED;
+      }
+      return { ...t, status };
+    }).sort((a, b) => {
+      return a.times.start - b.times.start;
+    });
   }, [tasks, currentMinutes, viewDate]);
 
-  // Logic for search modal results
   const searchResults = useMemo(() => {
     let list = tasks;
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(t => 
-        t.title.toLowerCase().includes(q) || 
-        t.venue.toLowerCase().includes(q) || 
-        (t.remarks && t.remarks.toLowerCase().includes(q))
-      );
+      list = list.filter(t => t.title.toLowerCase().includes(q) || t.venue.toLowerCase().includes(q));
     } else {
-      // If query is empty, filter by the specific archive date
       list = list.filter(t => t.date === searchDate);
     }
 
-    return list
-      .map(t => ({ ...t, status: getTaskStatus(t, currentMinutes, t.date === getTodayString()) }))
-      .sort((a, b) => {
-        // Sort by date descending first, then time
-        if (a.date !== b.date) return b.date.localeCompare(a.date);
-        return a.timeBlock.localeCompare(b.timeBlock);
-      });
+    return list.map(t => {
+      const times = parseTimeBlock(t.timeBlock);
+      const isToday = t.date === getTodayString();
+      let status = TaskStatus.UPCOMING;
+      if (isToday && currentMinutes >= times.start && currentMinutes < times.end) {
+        status = TaskStatus.ACTIVE;
+      } else if ((isToday && currentMinutes >= times.end) || new Date(t.date) < new Date(getTodayString())) {
+        status = TaskStatus.COMPLETED;
+      }
+      return { ...t, status, times };
+    }).sort((a, b) => b.date.localeCompare(a.date) || a.times.start - b.times.start);
   }, [tasks, currentMinutes, searchDate, searchQuery]);
 
   const handlePrint = async () => {
@@ -160,17 +181,12 @@ const App: React.FC = () => {
     setIsCapturing(true);
     setTimeout(async () => {
       try {
-        const canvas = await html2canvas(captureRef.current!, {
-          backgroundColor: '#ffffff',
-          scale: 3,
-          useCORS: true,
-        });
+        const canvas = await html2canvas(captureRef.current!, { backgroundColor: '#ffffff', scale: 3, useCORS: true });
         const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png'));
         if (blob) {
           const file = new File([blob], `Schedule-${viewDate}.png`, { type: 'image/png' });
-          if (navigator.share) {
-            await navigator.share({ files: [file], title: 'My Schedule' });
-          } else {
+          if (navigator.share) await navigator.share({ files: [file], title: 'Schedule' });
+          else {
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `tasks-${viewDate}.png`;
@@ -182,50 +198,25 @@ const App: React.FC = () => {
     }, 200);
   };
 
-  const changeDate = (days: number) => {
-      const d = new Date(viewDate);
-      d.setDate(d.getDate() + days);
-      setViewDate(d.toISOString().split('T')[0]);
+  const handleEditRequest = (task: Task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
   };
 
   return (
-    <div 
-      className={`flex flex-col min-h-screen max-w-md mx-auto relative ${isCapturing ? 'overflow-visible bg-white' : 'overflow-x-hidden bg-slate-50'}`}
-      ref={captureRef}
-    >
-      <EmergencyOverlay 
-        message={activeEmergency} 
-        onClose={() => setActiveEmergency(null)} 
-      />
-
-      <header className={`px-6 pt-10 pb-4 sticky top-0 z-40 ${isCapturing ? 'relative bg-white border-b-4 border-slate-100 mb-8' : 'bg-slate-50/80 backdrop-blur-md'}`}>
+    <div className={`flex flex-col min-h-screen max-w-md mx-auto relative ${isCapturing ? 'bg-white' : 'bg-slate-50'}`} ref={captureRef}>
+      <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
+      
+      <header className={`px-6 pt-10 pb-4 sticky top-0 z-40 ${isCapturing ? 'relative' : 'bg-slate-50/80 backdrop-blur-md'}`}>
         <div className="flex justify-between items-start mb-6">
           <LiveClock />
           <div className={`flex gap-2 ${isCapturing ? 'hidden' : ''}`}>
-            <button 
-              onClick={() => setIsSearchOpen(true)}
-              className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm hover:bg-slate-50 transition-all active:scale-90"
-              title="Search Archive"
-            >
-              <Search size={20} />
-            </button>
-            <button 
-              onClick={handlePrint}
-              className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm hover:bg-slate-50 transition-all active:scale-90"
-              title="Print/Share Schedule"
-            >
-              <Printer size={20} />
-            </button>
-            <button 
-              onClick={() => { setEditingTask(null); setIsModalOpen(true); }}
-              className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg hover:shadow-indigo-200 transition-all active:scale-90"
-              title="Add New Task"
-            >
-              <Plus size={24} />
-            </button>
+            <button onClick={() => setIsSearchOpen(true)} className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm active:scale-90 transition-all pointer-events-auto"><Search size={20} /></button>
+            <button onClick={handlePrint} className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm active:scale-90 transition-all pointer-events-auto"><Printer size={20} /></button>
+            <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-all pointer-events-auto"><Plus size={24} /></button>
           </div>
         </div>
-
+        
         {activeTab === Tab.TASKS && !isCapturing && (
           <div className="space-y-3">
              <div className="flex items-center gap-2">
@@ -236,19 +227,13 @@ const App: React.FC = () => {
                 {isLoading && <Loader2 size={12} className="animate-spin text-indigo-500" />}
             </div>
             
-            <div className="flex items-center justify-between bg-white/50 backdrop-blur-sm p-2 rounded-2xl border border-white/50 shadow-sm">
-                <button onClick={() => changeDate(-1)} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-xl transition-all">
-                    <ChevronLeft size={20} />
-                </button>
+            <div className="flex items-center justify-between bg-white/50 p-2 rounded-2xl border border-white/50 shadow-sm">
+                <button onClick={() => setViewDate(d => { const date = new Date(d); date.setDate(date.getDate()-1); return date.toISOString().split('T')[0]; })} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-xl transition-all"><ChevronLeft size={20} /></button>
                 <div className="flex flex-col items-center">
-                    <span className="text-[11px] font-black text-indigo-900 uppercase tracking-widest leading-none mb-1">
-                        {viewDate === getTodayString() ? 'TODAY' : viewDate === getTomorrowString() ? 'TOMORROW' : 'SCHEDULED'}
-                    </span>
+                    <span className="text-[11px] font-black text-indigo-900 uppercase tracking-widest leading-none mb-1">{viewDate === getTodayString() ? 'TODAY' : viewDate === getTomorrowString() ? 'TOMORROW' : 'SCHEDULED'}</span>
                     <span className="text-xs font-bold text-slate-500">{formatFriendlyDate(new Date(viewDate))}</span>
                 </div>
-                <button onClick={() => changeDate(1)} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-xl transition-all">
-                    <ChevronRight size={20} />
-                </button>
+                <button onClick={() => setViewDate(d => { const date = new Date(d); date.setDate(date.getDate()+1); return date.toISOString().split('T')[0]; })} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-xl transition-all"><ChevronRight size={20} /></button>
             </div>
           </div>
         )}
@@ -256,73 +241,36 @@ const App: React.FC = () => {
 
       <main className={`flex-1 px-6 ${isCapturing ? 'pb-10' : 'pb-24'} pt-2`}>
         {activeTab === Tab.TASKS ? (
-          <div className="space-y-8">
-            <div className="grid gap-8">
-              {isLoading ? (
-                <div className="py-24 flex flex-col items-center justify-center text-slate-400 gap-4">
-                  <Loader2 size={40} className="animate-spin text-indigo-500/50" />
-                  <span className="text-xs font-black uppercase tracking-widest">Loading Schedule...</span>
-                </div>
-              ) : homepageTasks.length === 0 ? (
-                <div className="py-24 text-center text-slate-400 italic bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 px-6">
-                  No tasks scheduled for {formatFriendlyDate(new Date(viewDate))}.
-                </div>
-              ) : (
-                homepageTasks.map(task => (
-                  <TaskCard 
-                    key={task.id} 
-                    task={task} 
-                    status={task.status} 
-                    onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }}
-                    onDelete={handleDeleteTask}
-                    isCapturing={isCapturing}
-                  />
-                ))
-              )}
-            </div>
+          <div className="grid gap-8">
+            {homepageTasks.length === 0 ? (
+              <div className="py-24 text-center text-slate-400 italic">No tasks scheduled for this day.</div>
+            ) : (
+              homepageTasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  status={task.status} 
+                  onEdit={handleEditRequest} 
+                  onDelete={handleDeleteTask} 
+                  isCapturing={isCapturing} 
+                />
+              ))
+            )}
           </div>
         ) : (
-          <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="space-y-8 animate-in fade-in">
             <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-              <h3 className="text-xs font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Control Center</h3>
-              <p className="text-slate-500 text-sm mb-4 leading-relaxed">
-                Compose a custom message to broadcast instantly to all users via Supabase Real-time.
-              </p>
-              
-              <div className="space-y-4">
-                <textarea
-                  className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 focus:border-rose-500 focus:bg-white transition-all outline-none font-medium resize-none text-slate-800"
-                  placeholder="Enter broadcast message here..."
-                  rows={3}
-                  value={emergencyInput}
-                  onChange={(e) => setEmergencyInput(e.target.value)}
-                />
-                
-                <button 
-                  onClick={() => triggerEmergency(emergencyInput)}
-                  disabled={!emergencyInput.trim()}
-                  className={`w-full text-white font-black uppercase tracking-widest py-5 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95 ${emergencyInput.trim() ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-slate-300 cursor-not-allowed shadow-none'}`}
-                >
-                  <Send size={20} />
-                  Broadcast Globally
-                </button>
-              </div>
+              <h3 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-4">Control Center</h3>
+              <textarea className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 focus:border-rose-500 focus:bg-white transition-all outline-none font-medium resize-none" placeholder="Broadcast message..." rows={3} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
+              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-4 bg-rose-600 text-white font-black uppercase tracking-widest py-5 rounded-3xl shadow-xl active:scale-95 disabled:bg-slate-300 flex items-center justify-center gap-2"><Send size={20} /> Broadcast</button>
             </div>
-
             <div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Broadcast History</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">History</h3>
               <div className="space-y-3">
                 {emergencies.map(msg => (
                   <div key={msg.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-50 flex items-start gap-4">
-                    <div className="bg-rose-50 p-3 rounded-2xl text-rose-600 shrink-0">
-                      <AlertCircle size={20} />
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-slate-800 font-bold leading-snug mb-1 break-words">{msg.text}</p>
-                      <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">
-                        {new Date(msg.createdAt).toLocaleString()}
-                      </p>
-                    </div>
+                    <div className="bg-rose-50 p-3 rounded-2xl text-rose-600"><AlertCircle size={20} /></div>
+                    <div><p className="text-slate-800 font-bold leading-snug">{msg.text}</p><p className="text-slate-400 text-[10px] uppercase">{new Date(msg.createdAt).toLocaleString()}</p></div>
                   </div>
                 ))}
               </div>
@@ -331,95 +279,27 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className={`fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-8 py-4 flex justify-around items-center safe-area-bottom z-50 ${isCapturing ? 'hidden' : ''}`}>
-        <button 
-          onClick={() => setActiveTab(Tab.TASKS)}
-          className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}
-        >
-          <Calendar size={24} strokeWidth={activeTab === Tab.TASKS ? 2.5 : 2} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Tasks</span>
-        </button>
-        
-        <button 
-          onClick={() => setActiveTab(Tab.EMERGENCY)}
-          className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}
-        >
-          <AlertCircle size={24} strokeWidth={activeTab === Tab.EMERGENCY ? 2.5 : 2} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Emergency</span>
-        </button>
+      <nav className={`fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-8 py-4 flex justify-around items-center z-50 ${isCapturing ? 'hidden' : ''}`}>
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}><Calendar size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Tasks</span></button>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}><AlertCircle size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Emergency</span></button>
       </nav>
 
-      {/* Search Modal Overlay */}
       {isSearchOpen && (
-          <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col animate-in slide-in-from-right duration-300">
-              <div className="bg-white px-6 pt-12 pb-6 border-b border-slate-100 shadow-sm">
-                  <div className="flex items-center gap-4 mb-6">
-                      <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-2 bg-slate-100 rounded-xl text-slate-600 active:scale-90 transition-all">
-                        <X size={20} />
-                      </button>
-                      <h2 className="text-xl font-black text-slate-800">Search & Archive</h2>
-                  </div>
-                  
-                  <div className="space-y-4">
-                      <div className="relative">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                          <input 
-                              type="text"
-                              autoFocus
-                              placeholder="Search title, venue, or remarks..."
-                              className="w-full bg-slate-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 focus:border-indigo-500 focus:bg-white transition-all outline-none font-medium"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                          />
-                      </div>
-                      
-                      <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                          <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Archive Date Viewer</label>
-                          <input 
-                              type="date"
-                              className="w-full bg-white border-2 border-transparent rounded-xl px-4 py-2 focus:border-indigo-500 outline-none font-bold text-indigo-900"
-                              value={searchDate}
-                              onChange={(e) => setSearchDate(e.target.value)}
-                          />
-                          <p className="mt-1.5 text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">
-                            Select a date to view all commitments of that specific day.
-                          </p>
-                      </div>
-                  </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-                  <div className="grid gap-8">
-                      {searchResults.map(task => (
-                        <div key={task.id} className="relative">
-                            <div className="absolute -top-4 left-4 bg-slate-200 text-slate-600 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest z-10 border border-white">
-                                {formatFriendlyDate(new Date(task.date))}
-                            </div>
-                            <TaskCard 
-                                task={task} 
-                                status={task.status} 
-                                onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }}
-                                onDelete={handleDeleteTask}
-                            />
-                        </div>
-                      ))}
-                      {searchResults.length === 0 && (
-                          <div className="text-center py-20 text-slate-400 italic">
-                            {searchQuery ? 'No matching results found.' : `No archive entries for ${formatFriendlyDate(new Date(searchDate))}.`}
-                          </div>
-                      )}
-                  </div>
-              </div>
+        <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col animate-in slide-in-from-right">
+          <div className="bg-white px-6 pt-12 pb-6 border-b">
+            <div className="flex items-center gap-4 mb-6">
+              <button onClick={() => setIsSearchOpen(false)} className="p-2 bg-slate-100 rounded-xl active:scale-90 transition-all"><X size={20} /></button>
+              <h2 className="text-xl font-black">Search Archive</h2>
+            </div>
+            <input type="text" placeholder="Search tasks..." className="w-full bg-slate-50 border-2 rounded-2xl px-5 py-4 outline-none focus:border-indigo-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            {!searchQuery && <input type="date" className="w-full mt-4 bg-slate-50 border-2 rounded-2xl px-5 py-4" value={searchDate} onChange={(e) => setSearchDate(e.target.value)} />}
           </div>
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            {searchResults.map(t => <TaskCard key={t.id} task={t} status={t.status} onEdit={handleEditRequest} onDelete={handleDeleteTask} />)}
+          </div>
+        </div>
       )}
-
-      {isModalOpen && (
-        <TaskModal 
-          task={editingTask} 
-          onClose={() => { setIsModalOpen(false); setEditingTask(null); }} 
-          onSave={handleSaveTask} 
-        />
-      )}
+      {isModalOpen && <TaskModal task={editingTask} onClose={() => { setIsModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} onDelete={handleDeleteTask} />}
     </div>
   );
 };

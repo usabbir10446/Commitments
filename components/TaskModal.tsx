@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Trash2 } from 'lucide-react';
 import { Task } from '../types';
 import { getTomorrowString } from '../utils/time';
 
@@ -8,9 +8,10 @@ interface TaskModalProps {
   task?: Task | null;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
+  onDelete: (id: string) => void;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave, onDelete }) => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [formData, setFormData] = useState<Partial<Task>>({
@@ -57,6 +58,12 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave }) => {
       ...formData,
       timeBlock: combinedTimeBlock
     });
+  };
+
+  const handleDelete = () => {
+    if (task?.id) {
+      onDelete(task.id);
+    }
   };
 
   return (
@@ -162,13 +169,26 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave }) => {
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white font-black uppercase tracking-widest py-5 rounded-3xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 mt-4 active:scale-[0.97]"
-          >
-            <Save size={20} />
-            {task ? 'Update Entry' : 'Add to Schedule'}
-          </button>
+          <div className="space-y-3 pt-4">
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 text-white font-black uppercase tracking-widest py-5 rounded-3xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 active:scale-[0.97]"
+            >
+              <Save size={20} />
+              {task ? 'Update Entry' : 'Add to Schedule'}
+            </button>
+
+            {task && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="w-full bg-rose-50 text-rose-600 font-black uppercase tracking-widest py-5 rounded-3xl hover:bg-rose-100 transition-all border-2 border-rose-100 flex items-center justify-center gap-2 active:scale-[0.97]"
+              >
+                <Trash2 size={20} />
+                Delete Task
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
