@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WelcomeTask } from '../types';
+import { WelcomeTask } from '../types.ts';
 import { X, Radio } from 'lucide-react';
 
 interface WelcomeOverlayProps {
@@ -32,8 +32,8 @@ const WelcomeOverlay: React.FC<WelcomeOverlayProps> = ({ task, onStop }) => {
           <div className="h-2 w-32 bg-indigo-500 mx-auto rounded-full mt-2" />
         </div>
 
-        {/* Main Image Container */}
-        <div className="relative w-full aspect-[4/5] max-w-sm rounded-[3.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(79,70,229,0.3)] mb-12 group animate-in zoom-in-90 duration-700">
+        {/* Main Image Container with thick Outline */}
+        <div className="relative w-full aspect-[4/5] max-w-sm rounded-[3.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(79,70,229,0.3)] mb-12 group animate-in zoom-in-90 duration-700 border-8 border-white ring-4 ring-indigo-500/5">
           <img 
             src={task.imageData} 
             alt="Welcome" 

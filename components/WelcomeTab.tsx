@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { WelcomeTask } from '../types';
+import { WelcomeTask } from '../types.ts';
 import { Image as ImageIcon, Plus, Play, Square, Trash2, X } from 'lucide-react';
 
 interface WelcomeTabProps {
@@ -130,7 +130,8 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
                {/* Glowing Background Effect */}
                <div className="absolute -inset-1.5 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-[2rem] blur-lg opacity-30 animate-pulse" />
                
-               <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden border-2 border-white shadow-inner bg-slate-100">
+               {/* Main Image Container with Outline */}
+               <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden border-4 border-white shadow-xl bg-slate-100 ring-2 ring-indigo-500/20">
                  <img src={t.imageData} className="w-full h-full object-cover" />
                </div>
             </div>
