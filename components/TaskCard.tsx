@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Task, TaskStatus } from '../types';
-import { Clock, MapPin, Info, CheckCircle2, UserCheck, Edit3 } from 'lucide-react';
+import { Clock, MapPin, Info, CheckCircle2, UserCheck, Edit3, Trash2 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -11,7 +11,7 @@ interface TaskCardProps {
   isCapturing?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, status, onEdit, isCapturing }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, status, onEdit, onDelete, isCapturing }) => {
   const isSelected = status === TaskStatus.ACTIVE;
   const isCompleted = status === TaskStatus.COMPLETED;
 
@@ -30,6 +30,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, onEdit, isCapturing }
     e.preventDefault();
     e.stopPropagation();
     onEdit(task);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete(task.id);
   };
 
   return (
@@ -74,14 +80,22 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, onEdit, isCapturing }
       </div>
 
       {!isCapturing && (
-        <div className="absolute top-4 right-4 flex gap-3 z-50 pointer-events-auto">
+        <div className="absolute top-4 right-4 flex gap-2 z-50 pointer-events-auto">
            <button 
              type="button"
              onClick={handleEditClick}
-             className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 shadow-md active:scale-90 transition-all pointer-events-auto cursor-pointer"
+             className="w-9 h-9 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 shadow-md active:scale-90 transition-all pointer-events-auto cursor-pointer"
              title="Edit Task"
            >
-             <Edit3 size={18} strokeWidth={2.5} />
+             <Edit3 size={16} strokeWidth={2.5} />
+           </button>
+           <button 
+             type="button"
+             onClick={handleDeleteClick}
+             className="w-9 h-9 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-rose-500 shadow-md active:scale-90 transition-all pointer-events-auto cursor-pointer"
+             title="Delete Task"
+           >
+             <Trash2 size={16} strokeWidth={2.5} />
            </button>
         </div>
       )}

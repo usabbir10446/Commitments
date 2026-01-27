@@ -139,11 +139,21 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
               
               <div className="flex gap-2">
                 {t.isActive ? (
-                  <button onClick={onStop} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-rose-100"><Square size={12} fill="white" /> Stop Broadcast</button>
+                  <button onClick={() => onStop()} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-rose-100"><Square size={12} fill="white" /> Stop Broadcast</button>
                 ) : (
                   <button onClick={() => onStart(t.id)} className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"><Play size={12} fill="white" /> Start Broadcast</button>
                 )}
-                <button onClick={() => onDelete(t.id)} className="bg-slate-50 text-slate-400 p-2.5 rounded-xl hover:text-rose-600 hover:bg-rose-50 transition-all border border-slate-100"><Trash2 size={16} /></button>
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(t.id);
+                  }} 
+                  className="bg-slate-50 text-slate-400 p-2.5 rounded-xl hover:text-rose-600 hover:bg-rose-50 transition-all border border-slate-100"
+                  title="Delete Template"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           </div>
