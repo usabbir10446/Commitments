@@ -124,18 +124,21 @@ const App: React.FC = () => {
     if (!id) return;
     if (!window.confirm("Delete this task permanently?")) return;
 
+    // OPTIMISTIC UPDATE: Remove from UI immediately
+    const previousTasks = [...tasks];
+    setTasks(prev => prev.filter(t => t.id !== id));
+    setIsModalOpen(false);
+    setEditingTask(null);
+
     try {
       const success = await storageService.deleteTask(id);
-      if (success) {
-        setTasks(prev => prev.filter(t => t.id !== id));
-        setIsModalOpen(false);
-        setEditingTask(null);
-      } else {
-        alert("Delete failed on server. Please check your SQL policies.");
+      if (!success) {
+        alert("Server failed to delete. Check SQL policies.");
+        setTasks(previousTasks); // Rollback if failed
       }
     } catch (err) {
       console.error("Delete task exception:", err);
-      alert("An error occurred while deleting.");
+      setTasks(previousTasks); // Rollback if error
     }
   };
 
@@ -161,15 +164,19 @@ const App: React.FC = () => {
   const handleDeleteWelcome = async (id: string) => {
     if (!id) return;
     if (window.confirm("Delete this welcome template?")) {
+      // OPTIMISTIC UPDATE
+      const previousWelcome = [...welcomeTasks];
+      setWelcomeTasks(prev => prev.filter(w => w.id !== id));
+
       try {
         const success = await storageService.deleteWelcomeTask(id);
-        if (success) {
-          setWelcomeTasks(prev => prev.filter(w => w.id !== id));
-        } else {
+        if (!success) {
           alert("Failed to delete welcome template on server.");
+          setWelcomeTasks(previousWelcome); // Rollback
         }
       } catch (error) {
         console.error("Delete welcome error:", error);
+        setWelcomeTasks(previousWelcome); // Rollback
       }
     }
   };

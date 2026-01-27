@@ -139,20 +139,21 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
               
               <div className="flex gap-2">
                 {t.isActive ? (
-                  <button onClick={() => onStop()} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-rose-100"><Square size={12} fill="white" /> Stop Broadcast</button>
+                  <button onClick={() => onStop()} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-rose-100 transition-all active:scale-95"><Square size={12} fill="white" /> Stop</button>
                 ) : (
-                  <button onClick={() => onStart(t.id)} className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"><Play size={12} fill="white" /> Start Broadcast</button>
+                  <button onClick={() => onStart(t.id)} className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 transition-all active:scale-95"><Play size={12} fill="white" /> Start</button>
                 )}
                 <button 
+                  type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onDelete(t.id);
                   }} 
-                  className="bg-slate-50 text-slate-400 p-2.5 rounded-xl hover:text-rose-600 hover:bg-rose-50 transition-all border border-slate-100"
+                  className="bg-white text-rose-500 p-3 rounded-xl hover:bg-rose-50 transition-all border border-slate-200 shadow-md active:scale-90 z-20 cursor-pointer"
                   title="Delete Template"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} strokeWidth={2.5} />
                 </button>
               </div>
             </div>
