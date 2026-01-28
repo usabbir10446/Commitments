@@ -1,6 +1,7 @@
 import { 
   collection, 
   getDocs, 
+  getDoc,
   addDoc, 
   updateDoc, 
   deleteDoc, 
@@ -17,6 +18,17 @@ const TASKS_COLLECTION = 'tasks';
 const EMERGENCIES_COLLECTION = 'emergencies';
 const WELCOME_COLLECTION = 'welcome_tasks';
 
+// Helper to remove undefined properties from an object for Firestore compatibility
+const cleanData = (data: any) => {
+  const clean = { ...data };
+  Object.keys(clean).forEach(key => {
+    if (clean[key] === undefined) {
+      delete clean[key];
+    }
+  });
+  return clean;
+};
+
 export const storageService = {
   getTasks: async (): Promise<Task[]> => {
     const q = query(collection(db, TASKS_COLLECTION), orderBy('timeBlock', 'asc'));
@@ -26,14 +38,16 @@ export const storageService = {
 
   saveTask: async (task: Partial<Task>): Promise<Task | null> => {
     try {
-      if (task.id) {
-        const taskRef = doc(db, TASKS_COLLECTION, task.id);
-        const { id, ...data } = task;
-        await updateDoc(taskRef, data);
-        return task as Task;
+      const { id, ...data } = task;
+      const filteredData = cleanData(data);
+
+      if (id) {
+        const taskRef = doc(db, TASKS_COLLECTION, id);
+        await updateDoc(taskRef, filteredData);
+        return { id, ...filteredData } as Task;
       } else {
-        const docRef = await addDoc(collection(db, TASKS_COLLECTION), task);
-        return { id: docRef.id, ...task } as Task;
+        const docRef = await addDoc(collection(db, TASKS_COLLECTION), filteredData);
+        return { id: docRef.id, ...filteredData } as Task;
       }
     } catch (error) {
       console.error("Error saving task:", error);
@@ -59,8 +73,11 @@ export const storageService = {
 
   saveWelcomeTask: async (wt: Partial<WelcomeTask>): Promise<boolean> => {
     try {
+      const { id, ...data } = wt;
+      const filteredData = cleanData(data);
+      
       await addDoc(collection(db, WELCOME_COLLECTION), {
-        ...wt,
+        ...filteredData,
         createdAt: Date.now(),
         isActive: false
       });
@@ -73,15 +90,25 @@ export const storageService = {
 
   setWelcomeActive: async (id: string, active: boolean): Promise<boolean> => {
     try {
+      // First, check if the specific document actually exists if we're trying to activate it
+      if (active && id) {
+        const docRef = doc(db, WELCOME_COLLECTION, id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          console.error(`Document with ID ${id} does not exist in ${WELCOME_COLLECTION}`);
+          return false;
+        }
+      }
+
       const batch = writeBatch(db);
       const snapshot = await getDocs(collection(db, WELCOME_COLLECTION));
       
-      // Deactivate all
+      // Deactivate all existing templates
       snapshot.docs.forEach(d => {
         batch.update(d.ref, { isActive: false });
       });
 
-      // Activate specific one if needed
+      // Activate specific one if valid ID was provided
       if (active && id) {
         const taskRef = doc(db, WELCOME_COLLECTION, id);
         batch.update(taskRef, { isActive: true });
@@ -89,8 +116,8 @@ export const storageService = {
 
       await batch.commit();
       return true;
-    } catch (error) {
-      console.error("Error toggling welcome broadcast:", error);
+    } catch (error: any) {
+      console.error("Error toggling welcome broadcast:", error.message);
       return false;
     }
   },

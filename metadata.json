@@ -1,5 +1,5 @@
 {
-  "name": "Daily Task Scheduler",
-  "description": "A high-fidelity mobile-first task scheduler with active task highlighting, real-time clock, and a global emergency broadcast system.",
+  "name": "Daily Cmt",
+  "description": "A high-fidelity real-time dashboard for task scheduling, highlighting active sessions with custom branding and global emergency broadcasting.",
   "requestFramePermissions": []
 }
