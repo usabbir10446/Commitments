@@ -18,28 +18,24 @@
         // Polyfill process for libraries that expect it
         window.process = { env: { NODE_ENV: 'production' } };
         
-        // Error reporting - improved to capture more detail if possible
+        // Error reporting to UI for easier debugging on older mobile devices
         window.onerror = function(msg, url, lineNo, columnNo, error) {
-            var string = msg.toLowerCase();
-            var substring = "script error";
-            if (string.indexOf(substring) > -1){
-                console.error('Script Error: See Browser Console for Detail (likely CORS or Syntax)');
-            } else {
-                var message = [
-                    'Message: ' + msg,
-                    'URL: ' + url,
-                    'Line: ' + lineNo,
-                    'Column: ' + columnNo,
-                    'Error object: ' + JSON.stringify(error)
-                ].join(' - ');
-                console.error(message);
+            console.error('Global Error:', msg, url, lineNo, columnNo, error);
+            const root = document.getElementById('root');
+            // Only show error overlay if the app hasn't mounted successfully
+            if (root && (root.innerHTML.includes('Loading Scheduler...') || root.innerHTML.trim() === '')) {
+                root.innerHTML = '<div style="padding: 40px; color: #e11d48; font-family: sans-serif; text-align: center; background: #fff; height: 100vh;">' +
+                    '<h2 style="font-weight: 900; margin-bottom: 8px;">Launch Error</h2>' +
+                    '<p style="opacity: 0.7; font-size: 13px; margin-bottom: 24px; line-height: 1.5;">The application could not start. This might be due to an incompatible browser version or a network issue.</p>' +
+                    '<div style="background: #f1f5f9; padding: 12px; border-radius: 8px; font-size: 11px; text-align: left; overflow: auto; margin-bottom: 24px;">' + msg + '</div>' +
+                    '<button onclick="location.reload()" style="padding: 14px 28px; background: #4f46e5; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">Try Again</button>' +
+                    '</div>';
             }
             return false;
         };
     </script>
 
-    <!-- es-module-shims allows importmaps to work in older browsers. 
-         We load it without 'async' to ensure it's ready before the module scripts. -->
+    <!-- es-module-shims enables importmaps and ESM in legacy browsers like Android 5.0 -->
     <script src="https://esm.sh/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
 
     <style>
@@ -47,16 +43,13 @@
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: contain;
+            background-color: #f8fafc;
         }
         .safe-area-bottom {
             padding-bottom: env(safe-area-inset-bottom);
         }
         ::-webkit-scrollbar {
             display: none;
-        }
-        /* Custom class to hide elements during capture */
-        .hide-during-capture {
-            display: none !important;
         }
         /* Fallback for backdrop-filter on older Android versions */
         @supports not (backdrop-filter: blur(1px)) {
@@ -70,9 +63,7 @@
     </style>
 
     <!-- 
-      Using only importmap-shim ensures that ALL browsers (including those that support native importmaps) 
-      use the es-module-shims polyfill path, which is more reliable when targeting legacy environments 
-      like Android 5.0. 
+      We use a single importmap-shim to ensure consistent behavior across browsers.
     -->
     <script type="importmap-shim">
     {
@@ -80,6 +71,7 @@
         "react": "https://esm.sh/react@19.0.0?target=es2015",
         "react/": "https://esm.sh/react@19.0.0/",
         "react-dom": "https://esm.sh/react-dom@19.0.0?target=es2015",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?target=es2015",
         "react-dom/": "https://esm.sh/react-dom@19.0.0/",
         "lucide-react": "https://esm.sh/lucide-react@0.463.0?target=es2015",
         "html2canvas": "https://esm.sh/html2canvas@1.4.1?target=es2015",
@@ -101,8 +93,24 @@
 </script>
 </head>
 <body class="bg-slate-50 text-slate-900">
-    <div id="root"></div>
-    <!-- Entry point for the application using module-shim -->
+    <div id="root">
+        <!-- Initial mounting state -->
+        <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+            <div style="text-align: center;">
+                <div style="width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top: 3px solid #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px;"></div>
+                <p style="font-family: 'Inter', sans-serif; font-weight: 700; color: #64748b; font-size: 13px; letter-spacing: -0.01em;">Loading Scheduler...</p>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- Main Entry Point -->
     <script type="module-shim" src="index.tsx"></script>
 </body>
 </html>
