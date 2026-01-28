@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types';
 import { storageService } from './services/storageService';
 import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, formatFriendlyDate } from './utils/time';
-import { supabase } from './services/supabase';
+import { db } from './services/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import LiveClock from './components/LiveClock';
 import TaskCard from './components/TaskCard';
 import TaskModal from './components/TaskModal';
@@ -34,75 +35,49 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [fetchedTasks, fetchedEmergencies, fetchedWelcome] = await Promise.all([
-          storageService.getTasks(),
-          storageService.getEmergencies(),
-          storageService.getWelcomeTasks()
-        ]);
-        setTasks(fetchedTasks);
-        setEmergencies(fetchedEmergencies);
-        setWelcomeTasks(fetchedWelcome);
-        
-        const active = fetchedWelcome.find(w => w.isActive);
-        if (active) setActiveWelcome(active);
-      } catch (err) {
-        console.error("Initial load error:", err);
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+
+    // Tasks Listener
+    const tasksQuery = query(collection(db, 'tasks'), orderBy('timeBlock', 'asc'));
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      const taskList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+      setTasks(taskList);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Tasks listener error:", error);
+      setIsLoading(false);
+    });
+
+    // Emergencies Listener
+    const emergencyQuery = query(collection(db, 'emergencies'), orderBy('createdAt', 'desc'));
+    const unsubscribeEmergencies = onSnapshot(emergencyQuery, (snapshot) => {
+      const msgList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EmergencyMessage));
+      setEmergencies(msgList);
+      
+      // Check for recent emergency to show overlay
+      const latest = msgList[0];
+      if (latest && Date.now() - latest.createdAt < 15000) {
+        setActiveEmergency(latest);
+        setTimeout(() => setActiveEmergency(prev => prev?.id === latest.id ? null : prev), 10000);
       }
-    };
+    });
 
-    loadData();
-
-    // Emergency Subscription
-    const emergencySubscription = supabase
-      .channel('emergency_broadcasts')
-      .on('postgres_changes', { event: 'INSERT', table: 'emergencies' }, (payload) => {
-        const newMsg: EmergencyMessage = {
-          id: payload.new.id,
-          text: payload.new.text,
-          createdAt: new Date(payload.new.created_at).getTime()
-        };
-        setEmergencies(prev => [newMsg, ...prev]);
-        setActiveEmergency(newMsg);
-        setTimeout(() => setActiveEmergency(prev => prev?.id === newMsg.id ? null : prev), 10000);
-      })
-      .subscribe();
-
-    // Welcome Sync Subscription
-    const welcomeSubscription = supabase
-      .channel('welcome_sync')
-      .on('postgres_changes', { event: '*', table: 'welcome_tasks' }, async () => {
-        const updated = await storageService.getWelcomeTasks();
-        setWelcomeTasks(updated);
-        const active = updated.find(w => w.isActive);
-        setActiveWelcome(active || null);
-      })
-      .subscribe();
-
-    // Task Change Subscription
-    const taskSubscription = supabase
-      .channel('task_sync')
-      .on('postgres_changes', { event: '*', table: 'tasks' }, async (payload) => {
-        if (payload.eventType === 'DELETE') {
-            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
-        } else {
-            const updatedTasks = await storageService.getTasks();
-            setTasks(updatedTasks);
-        }
-      })
-      .subscribe();
+    // Welcome Templates Listener
+    const welcomeQuery = query(collection(db, 'welcome_tasks'), orderBy('createdAt', 'desc'));
+    const unsubscribeWelcome = onSnapshot(welcomeQuery, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as WelcomeTask));
+      setWelcomeTasks(list);
+      const active = list.find(w => w.isActive);
+      setActiveWelcome(active || null);
+    });
 
     const statusTimer = setInterval(() => setCurrentMinutes(getCurrentMinutesFromMidnight()), 10000);
 
     return () => {
       clearInterval(statusTimer);
-      supabase.removeChannel(emergencySubscription);
-      supabase.removeChannel(welcomeSubscription);
-      supabase.removeChannel(taskSubscription);
+      unsubscribeTasks();
+      unsubscribeEmergencies();
+      unsubscribeWelcome();
     };
   }, []);
 
@@ -117,21 +92,14 @@ const App: React.FC = () => {
     if (saved) {
       setIsModalOpen(false);
       setEditingTask(null);
-      const updated = await storageService.getTasks();
-      setTasks(updated);
     }
   };
 
   const handleDeleteTask = async (id: string) => {
     if (!id) return;
-    setTasks(prev => prev.filter(t => t.id !== id));
+    await storageService.deleteTask(id);
     setIsModalOpen(false);
     setEditingTask(null);
-    try {
-      await storageService.deleteTask(id);
-    } catch (err) {
-      console.error("Deletion background sync failed:", err);
-    }
   };
 
   const handleEditRequest = (task: Task) => {
@@ -141,11 +109,7 @@ const App: React.FC = () => {
   };
 
   const handleAddWelcome = async (wt: Partial<WelcomeTask>) => {
-    const success = await storageService.saveWelcomeTask(wt);
-    if (success) {
-      const updated = await storageService.getWelcomeTasks();
-      setWelcomeTasks(updated);
-    }
+    await storageService.saveWelcomeTask(wt);
   };
 
   const handleStartWelcome = (id: string) => storageService.setWelcomeActive(id, true);
@@ -153,12 +117,7 @@ const App: React.FC = () => {
   
   const handleDeleteWelcome = async (id: string) => {
     if (!id) return;
-    setWelcomeTasks(prev => prev.filter(w => w.id !== id));
-    try {
-      await storageService.deleteWelcomeTask(id);
-    } catch (error) {
-      console.error("Welcome deletion background sync failed:", error);
-    }
+    await storageService.deleteWelcomeTask(id);
   };
 
   const homepageTasks = useMemo(() => {
@@ -269,7 +228,9 @@ const App: React.FC = () => {
       <main className={`flex-1 px-6 ${isCapturing ? 'pb-10' : 'pb-24'} pt-2`}>
         {activeTab === Tab.TASKS ? (
           <div className="space-y-8">
-            {homepageTasks.length === 0 ? (
+            {isLoading ? (
+              <div className="py-24 text-center text-slate-400 italic">Syncing with Cloud...</div>
+            ) : homepageTasks.length === 0 ? (
               <div className="py-24 text-center text-slate-400 italic">No tasks scheduled.</div>
             ) : (
               homepageTasks.map(task => (
