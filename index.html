@@ -67,8 +67,8 @@
     </style>
 
     <!-- 
-      IMPORTANT: Explicitly mapping react/jsx-runtime is necessary for environments 
-      where the JSX transformer expects to find the runtime at that bare specifier.
+      IMPORTANT: Using a single importmap-shim. 
+      Removed the duplicate native importmap which caused conflicts and version mismatches.
     -->
     <script type="importmap-shim">
     {
