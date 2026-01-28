@@ -18,7 +18,7 @@
         // Polyfill process for libraries that expect it
         window.process = { env: { NODE_ENV: 'production' } };
         
-        // Error reporting to UI for easier debugging on older mobile devices
+        // Error reporting to UI for easier debugging on mobile devices
         window.onerror = function(msg, url, lineNo, columnNo, error) {
             console.error('Global Error:', msg, url, lineNo, columnNo, error);
             const root = document.getElementById('root');
@@ -35,7 +35,7 @@
         };
     </script>
 
-    <!-- es-module-shims enables importmaps and ESM in legacy browsers like Android 5.0 -->
+    <!-- es-module-shims enables importmaps and ESM in legacy browsers -->
     <script async src="https://esm.sh/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
 
     <style>
@@ -51,7 +51,7 @@
         ::-webkit-scrollbar {
             display: none;
         }
-        /* Fallback for backdrop-filter on older Android versions */
+        /* Fallback for backdrop-filter on older engines */
         @supports not (backdrop-filter: blur(1px)) {
             .backdrop-blur-md {
                 background-color: rgba(248, 250, 252, 0.98) !important;
@@ -63,8 +63,10 @@
     </style>
 
     <!-- 
-      We use a single importmap-shim with explicit es2015 targets for maximum compatibility.
-      This handles React 19, Lucide, and Supabase correctly.
+      Using a single importmap-shim ensures consistency.
+      Modern browsers that support native importmaps will respect the shim logic 
+      if the native map is absent or if configured correctly.
+      Targeting es2015 ensures the JS payload is compatible with Android 5.0+ 
     -->
     <script type="importmap-shim">
     {
@@ -95,7 +97,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root">
-        <!-- Initial mounting state with basic CSS animation -->
+        <!-- Initial mounting state -->
         <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #f8fafc; font-family: sans-serif;">
             <div style="text-align: center;">
                 <div style="width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top: 3px solid #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
