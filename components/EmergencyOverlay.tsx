@@ -12,7 +12,7 @@ const EmergencyOverlay: React.FC<EmergencyOverlayProps> = ({ message, onClose })
   if (!message) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-rose-950/80 animate-in fade-in duration-500">
       {/* Background Pulse Glow */}
       <div className="absolute inset-0 bg-rose-900/20 animate-pulse pointer-events-none" />
       
@@ -22,9 +22,9 @@ const EmergencyOverlay: React.FC<EmergencyOverlayProps> = ({ message, onClose })
         <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%]" />
 
         {/* Top Header Section with Radial Gradient */}
-        <div className="relative px-8 pt-10 pb-6 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent)]">
-          <div className="flex items-center gap-5">
-            <div className="relative">
+        <div className="relative px-8 pt-10 pb-6 bg-rose-600">
+          <div className="flex items-center space-x-5">
+            <div className="relative shrink-0">
               <div className="absolute inset-0 bg-white rounded-2xl blur-lg opacity-40 animate-pulse" />
               <div className="relative bg-white text-rose-600 p-4 rounded-2xl shadow-2xl flex items-center justify-center">
                 <AlertTriangle className="animate-bounce" size={32} strokeWidth={3} />
@@ -32,8 +32,8 @@ const EmergencyOverlay: React.FC<EmergencyOverlayProps> = ({ message, onClose })
             </div>
             
             <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={16} className="text-rose-200" />
+              <div className="flex items-center space-x-2">
+                <ShieldAlert size={16} className="text-rose-200 shrink-0" />
                 <span className="text-rose-100 text-[10px] font-black tracking-[0.4em] uppercase opacity-90">Priority System Broadcast</span>
               </div>
               <h2 className="text-3xl font-black text-white italic tracking-tighter leading-none mt-1 drop-shadow-lg">
@@ -43,22 +43,22 @@ const EmergencyOverlay: React.FC<EmergencyOverlayProps> = ({ message, onClose })
 
             <button 
               onClick={onClose} 
-              className="p-3 hover:bg-white/20 rounded-2xl transition-all active:scale-90 text-white/80 hover:text-white border border-white/10 hover:border-white/30"
+              className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all active:scale-90 text-white border border-white/10 shrink-0"
             >
               <X size={28} strokeWidth={3} />
             </button>
           </div>
         </div>
 
-        {/* Message Container with Glassmorphism */}
+        {/* Message Container */}
         <div className="px-8 pb-10">
           <div className="relative group">
             {/* Outer Glow for Content */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-rose-400 to-orange-400 rounded-[2rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-rose-400 to-orange-400 rounded-[2rem] blur opacity-25" />
             
-            <div className="relative bg-black/30 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-inner overflow-hidden">
+            <div className="relative bg-rose-900/40 rounded-[2rem] p-8 border border-white/10 shadow-inner overflow-hidden">
               {/* Decorative Corner */}
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-white/10 to-transparent rounded-bl-3xl" />
+              <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-bl-3xl" />
               
               <p className="text-2xl sm:text-3xl font-black leading-tight tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] text-center break-words italic">
                 "{message.text}"

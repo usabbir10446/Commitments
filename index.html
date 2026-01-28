@@ -9,16 +9,39 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Polyfills for older browsers (Android 5.0 compatibility) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.32.1/minified.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/3.6.18/fetch.min.js"></script>
+    
     <script>
-        // Polyfill process for libraries that expect it in a browser environment
+        // Polyfill process for libraries that expect it
         window.process = { env: { NODE_ENV: 'production' } };
         
-        // Simple error reporting to help identify issues in deployed environments
+        // Error reporting - improved to capture more detail if possible
         window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Handled Error: ', msg, url, lineNo, columnNo, error);
+            var string = msg.toLowerCase();
+            var substring = "script error";
+            if (string.indexOf(substring) > -1){
+                console.error('Script Error: See Browser Console for Detail (likely CORS or Syntax)');
+            } else {
+                var message = [
+                    'Message: ' + msg,
+                    'URL: ' + url,
+                    'Line: ' + lineNo,
+                    'Column: ' + columnNo,
+                    'Error object: ' + JSON.stringify(error)
+                ].join(' - ');
+                console.error(message);
+            }
             return false;
         };
     </script>
+
+    <!-- es-module-shims allows importmaps to work in older browsers. 
+         We load it without 'async' to ensure it's ready before the module scripts. -->
+    <script src="https://esm.sh/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -35,23 +58,51 @@
         .hide-during-capture {
             display: none !important;
         }
+        /* Fallback for backdrop-filter on older Android versions */
+        @supports not (backdrop-filter: blur(1px)) {
+            .backdrop-blur-md {
+                background-color: rgba(248, 250, 252, 0.98) !important;
+            }
+            .backdrop-blur-xl {
+                background-color: rgba(255, 255, 255, 0.99) !important;
+            }
+        }
     </style>
+
+    <!-- 
+      Using only importmap-shim ensures that ALL browsers (including those that support native importmaps) 
+      use the es-module-shims polyfill path, which is more reliable when targeting legacy environments 
+      like Android 5.0. 
+    -->
+    <script type="importmap-shim">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0?target=es2015",
+        "react/": "https://esm.sh/react@19.0.0/",
+        "react-dom": "https://esm.sh/react-dom@19.0.0?target=es2015",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+        "lucide-react": "https://esm.sh/lucide-react@0.463.0?target=es2015",
+        "html2canvas": "https://esm.sh/html2canvas@1.4.1?target=es2015",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.4?target=es2015"
+      }
+    }
+    </script>
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
     "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.4"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.2"
   }
 }
 </script>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
-    <!-- Entry point for the application -->
-    <script type="module" src="index.tsx"></script>
+    <!-- Entry point for the application using module-shim -->
+    <script type="module-shim" src="index.tsx"></script>
 </body>
 </html>

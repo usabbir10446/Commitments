@@ -201,7 +201,7 @@ const App: React.FC = () => {
         return (
           t.title.toLowerCase().includes(query) ||
           t.venue.toLowerCase().includes(query) ||
-          (t.remarks?.toLowerCase().includes(query))
+          (t.remarks && t.remarks.toLowerCase().includes(query))
         );
       }
       return t.date === searchDate;
@@ -254,10 +254,10 @@ const App: React.FC = () => {
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
       <WelcomeOverlay task={activeWelcome} onStop={handleStopWelcome} />
       
-      <header className={`px-6 pt-10 pb-4 sticky top-0 z-40 ${isCapturing ? 'relative' : 'bg-slate-50/80 backdrop-blur-md'}`}>
+      <header className={`px-6 pt-10 pb-4 sticky top-0 z-40 ${isCapturing ? 'relative' : 'bg-slate-50 shadow-sm border-b border-slate-100'}`}>
         <div className="flex justify-between items-start mb-6">
           <LiveClock />
-          <div className={`flex gap-2 ${isCapturing ? 'hidden' : ''}`}>
+          <div className={`flex space-x-2 ${isCapturing ? 'hidden' : ''}`}>
             <button onClick={() => setIsSearchOpen(true)} className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm active:scale-90 transition-all pointer-events-auto"><Search size={20} /></button>
             <button onClick={handlePrint} className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 shadow-sm active:scale-90 transition-all pointer-events-auto"><Printer size={20} /></button>
             <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-all pointer-events-auto"><Plus size={24} /></button>
@@ -278,7 +278,7 @@ const App: React.FC = () => {
 
       <main className={`flex-1 px-6 ${isCapturing ? 'pb-10' : 'pb-24'} pt-2`}>
         {activeTab === Tab.TASKS ? (
-          <div className="grid gap-8">
+          <div className="space-y-8">
             {homepageTasks.length === 0 ? (
               <div className="py-24 text-center text-slate-400 italic">No tasks scheduled.</div>
             ) : (
@@ -307,22 +307,22 @@ const App: React.FC = () => {
             <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
               <h3 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-4">Control Center</h3>
               <textarea className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 focus:border-rose-500 focus:bg-white transition-all outline-none font-medium resize-none" placeholder="Broadcast message..." rows={3} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
-              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-4 bg-rose-600 text-white font-black uppercase tracking-widest py-5 rounded-3xl shadow-xl active:scale-95 disabled:bg-slate-300 flex items-center justify-center gap-2"><Send size={20} /> Broadcast</button>
+              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-4 bg-rose-600 text-white font-black uppercase tracking-widest py-5 rounded-3xl shadow-xl active:scale-95 disabled:bg-slate-300 flex items-center justify-center space-x-2"><Send size={20} /> <span>Broadcast</span></button>
             </div>
             <div>
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-2 text-center">History</h3>
               <div className="space-y-3">
-                {emergencies.map(msg => <div key={msg.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-50 flex items-start gap-4"><div className="bg-rose-50 p-3 rounded-2xl text-rose-600"><AlertCircle size={20} /></div><div><p className="text-slate-800 font-bold leading-snug">{msg.text}</p><p className="text-slate-400 text-[10px] uppercase">{new Date(msg.createdAt).toLocaleString()}</p></div></div>)}
+                {emergencies.map(msg => <div key={msg.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-50 flex items-start space-x-4"><div className="bg-rose-50 p-3 rounded-2xl text-rose-600 shrink-0"><AlertCircle size={20} /></div><div><p className="text-slate-800 font-bold leading-snug">{msg.text}</p><p className="text-slate-400 text-[10px] uppercase">{new Date(msg.createdAt).toLocaleString()}</p></div></div>)}
               </div>
             </div>
           </div>
         )}
       </main>
 
-      <nav className={`fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-8 py-4 flex justify-around items-center z-50 ${isCapturing ? 'hidden' : ''}`}>
-        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}><Calendar size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Tasks</span></button>
-        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}><UserPlus size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Welcome</span></button>
-        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}><AlertCircle size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Emergency</span></button>
+      <nav className={`fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 px-8 py-4 flex justify-around items-center z-50 ${isCapturing ? 'hidden' : ''}`}>
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center space-y-1 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}><Calendar size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Tasks</span></button>
+        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col items-center space-y-1 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}><UserPlus size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Welcome</span></button>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center space-y-1 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}><AlertCircle size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Emergency</span></button>
       </nav>
 
       {isModalOpen && (
@@ -337,8 +337,8 @@ const App: React.FC = () => {
       {isSearchOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col animate-in slide-in-from-right">
           <div className="bg-white px-6 pt-12 pb-6 border-b">
-            <div className="flex items-center gap-4 mb-6">
-              <button onClick={() => setIsSearchOpen(false)} className="p-2 bg-slate-100 rounded-xl active:scale-90 transition-all"><X size={20} /></button>
+            <div className="flex items-center space-x-4 mb-6">
+              <button onClick={() => setIsSearchOpen(false)} className="p-2 bg-slate-100 rounded-xl active:scale-90 transition-all shrink-0"><X size={20} /></button>
               <h2 className="text-xl font-black">Search Archive</h2>
             </div>
             <input type="text" placeholder="Search tasks..." className="w-full bg-slate-50 border-2 rounded-2xl px-5 py-4 outline-none focus:border-indigo-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />

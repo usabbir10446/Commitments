@@ -47,9 +47,9 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
         </div>
         <button 
           onClick={() => setShowAdd(!showAdd)}
-          className={`${showAdd ? 'bg-slate-100 text-slate-500' : 'bg-indigo-600 text-white shadow-indigo-200'} px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center gap-2 transition-all active:scale-95`}
+          className={`${showAdd ? 'bg-slate-100 text-slate-500' : 'bg-indigo-600 text-white shadow-indigo-200'} px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl flex items-center space-x-2 transition-all active:scale-95`}
         >
-          {showAdd ? <X size={16} /> : <><Plus size={16} /> New Template</>}
+          {showAdd ? <X size={16} /> : <><Plus size={16} /> <span>New Template</span></>}
         </button>
       </div>
 
@@ -61,7 +61,7 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
               {formData.imageData ? (
                 <img src={formData.imageData} className="w-full h-full object-cover" />
               ) : (
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center space-y-2">
                   <div className="bg-white p-4 rounded-full shadow-sm text-indigo-500">
                     <ImageIcon size={28} />
                   </div>
@@ -123,9 +123,9 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
         </form>
       )}
 
-      <div className="grid gap-6">
+      <div className="space-y-6">
         {tasks.map(t => (
-          <div key={t.id} className={`bg-white p-5 rounded-[2.5rem] border-2 transition-all flex items-center gap-5 ${t.isActive ? 'border-emerald-400 bg-emerald-50 ring-8 ring-emerald-50/50 shadow-2xl' : 'border-white shadow-sm hover:border-slate-100'}`}>
+          <div key={t.id} className={`bg-white p-5 rounded-[2.5rem] border-2 transition-all flex items-center space-x-5 ${t.isActive ? 'border-emerald-400 bg-emerald-50 ring-8 ring-emerald-50/50 shadow-2xl' : 'border-white shadow-sm hover:border-slate-100'}`}>
             <div className="relative shrink-0">
                {/* Glowing Background Effect */}
                <div className="absolute -inset-1.5 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-[2rem] blur-lg opacity-30 animate-pulse" />
@@ -137,18 +137,18 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center space-x-2 mb-1">
                 <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md uppercase tracking-wider">{t.topText}</span>
                 {t.isActive && <span className="text-[9px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">Live</span>}
               </div>
               <p className="text-base font-black text-slate-900 truncate leading-none mb-1">{t.bottomText1}</p>
               <p className="text-[11px] font-medium text-slate-400 truncate mb-4">{t.bottomText2 || 'No subtext'}</p>
               
-              <div className="flex gap-2">
+              <div className="flex space-x-2">
                 {t.isActive ? (
-                  <button onClick={() => onStop()} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-rose-100 transition-all active:scale-95"><Square size={12} fill="white" /> Stop</button>
+                  <button onClick={() => onStop()} className="flex-1 bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center space-x-2 shadow-lg shadow-rose-100 transition-all active:scale-95"><Square size={12} fill="white" /> <span>Stop</span></button>
                 ) : (
-                  <button onClick={() => onStart(t.id)} className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 transition-all active:scale-95"><Play size={12} fill="white" /> Start</button>
+                  <button onClick={() => onStart(t.id)} className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center space-x-2 shadow-lg shadow-emerald-100 transition-all active:scale-95"><Play size={12} fill="white" /> <span>Start</span></button>
                 )}
                 <button 
                   type="button"
@@ -157,7 +157,7 @@ const WelcomeTab: React.FC<WelcomeTabProps> = ({ tasks, onAdd, onStart, onStop, 
                     e.stopPropagation();
                     onDelete(t.id);
                   }} 
-                  className="bg-white text-rose-500 p-3 rounded-xl hover:bg-rose-50 transition-all border border-slate-200 shadow-sm active:scale-90 z-20 cursor-pointer"
+                  className="bg-white text-rose-500 p-3 rounded-xl hover:bg-rose-50 transition-all border border-slate-200 shadow-sm active:scale-90 z-20 cursor-pointer shrink-0"
                   title="Delete Template"
                 >
                   <Trash2 size={18} strokeWidth={2.5} />
