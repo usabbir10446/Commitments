@@ -9,6 +9,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Polyfill process for libraries that expect it in a browser environment
+        window.process = { env: { NODE_ENV: 'production' } };
+        
+        // Simple error reporting to help identify issues in deployed environments
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Handled Error: ', msg, url, lineNo, columnNo, error);
+            return false;
+        };
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;

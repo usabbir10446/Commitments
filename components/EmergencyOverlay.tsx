@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AlertTriangle, X, ShieldAlert } from 'lucide-react';
-import { EmergencyMessage } from '../types';
+import { EmergencyMessage } from '../types.ts';
 
 interface EmergencyOverlayProps {
   message: EmergencyMessage | null;
