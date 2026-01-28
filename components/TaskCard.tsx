@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Task, TaskStatus } from '../types.ts';
+import { Task, TaskStatus } from '../types';
 import { Clock, MapPin, Info, CheckCircle2, UserCheck, Edit3, Trash2 } from 'lucide-react';
 
 interface TaskCardProps {

@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types.ts';
-import { storageService } from './services/storageService.ts';
-import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, formatFriendlyDate } from './utils/time.ts';
-import { supabase } from './services/supabase.ts';
-import LiveClock from './components/LiveClock.tsx';
-import TaskCard from './components/TaskCard.tsx';
-import TaskModal from './components/TaskModal.tsx';
-import EmergencyOverlay from './components/EmergencyOverlay.tsx';
-import WelcomeOverlay from './components/WelcomeOverlay.tsx';
-import WelcomeTab from './components/WelcomeTab.tsx';
+import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types';
+import { storageService } from './services/storageService';
+import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, formatFriendlyDate } from './utils/time';
+import { supabase } from './services/supabase';
+import LiveClock from './components/LiveClock';
+import TaskCard from './components/TaskCard';
+import TaskModal from './components/TaskModal';
+import EmergencyOverlay from './components/EmergencyOverlay';
+import WelcomeOverlay from './components/WelcomeOverlay';
+import WelcomeTab from './components/WelcomeTab';
 import { Calendar, AlertCircle, Plus, Printer, Send, Search, X, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
@@ -125,12 +124,9 @@ const App: React.FC = () => {
 
   const handleDeleteTask = async (id: string) => {
     if (!id) return;
-    
-    // GUARANTEED INSTANT REMOVAL
     setTasks(prev => prev.filter(t => t.id !== id));
     setIsModalOpen(false);
     setEditingTask(null);
-
     try {
       await storageService.deleteTask(id);
     } catch (err) {
@@ -157,10 +153,7 @@ const App: React.FC = () => {
   
   const handleDeleteWelcome = async (id: string) => {
     if (!id) return;
-    
-    // GUARANTEED INSTANT REMOVAL
     setWelcomeTasks(prev => prev.filter(w => w.id !== id));
-
     try {
       await storageService.deleteWelcomeTask(id);
     } catch (error) {
@@ -171,7 +164,6 @@ const App: React.FC = () => {
   const homepageTasks = useMemo(() => {
     const isToday = viewDate === getTodayString();
     const dayTasks = tasks.filter(t => t.date === viewDate);
-    
     const mappedTasks = dayTasks.map(t => ({
       ...t,
       times: parseTimeBlock(t.timeBlock)
@@ -211,13 +203,11 @@ const App: React.FC = () => {
       const times = parseTimeBlock(t.timeBlock);
       const isToday = t.date === getTodayString();
       let status = TaskStatus.UPCOMING;
-      
       if (isToday && currentMinutes >= times.start && currentMinutes < times.end) {
         status = TaskStatus.ACTIVE;
       } else if ((isToday && currentMinutes >= times.end) || new Date(t.date) < new Date(getTodayString())) {
         status = TaskStatus.COMPLETED;
       }
-      
       return { ...t, status };
     }).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);

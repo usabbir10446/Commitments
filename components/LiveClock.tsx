@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { formatTime, formatFriendlyDate, formatBanglaDate } from '../utils/time.ts';
+import { formatTime, formatFriendlyDate, formatBanglaDate } from '../utils/time';
 
 const LiveClock: React.FC = () => {
   const [now, setNow] = useState(new Date());
