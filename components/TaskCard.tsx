@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, TaskStatus } from '../types';
-import { Clock, MapPin, Info, CheckCircle2, UserCheck, Edit3, Trash2 } from 'lucide-react';
+import { Clock, MapPin, CheckCircle2, UserCheck, Edit3, Trash2 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -30,7 +30,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
           <div className="flex items-center justify-between mb-6 xl:mb-8 shrink-0">
             <div className="flex items-center gap-5">
               <div className="bg-white p-3 xl:p-4 rounded-2xl border border-emerald-200 shadow-sm">
-                <Clock className="text-emerald-600" size={28} xl:size={32} strokeWidth={2.5} />
+                <Clock className="text-emerald-600 w-[28px] h-[28px] xl:w-[32px] xl:h-[32px]" strokeWidth={2.5} />
               </div>
               <div>
                 <p className="text-[9px] xl:text-[10px] font-bold text-emerald-600 uppercase tracking-[0.3em] mb-1">CURRENT SESSION</p>
@@ -51,7 +51,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
 
             <div className="space-y-4 xl:space-y-6 pb-10">
               <div className="flex items-start gap-4 xl:gap-6 bg-white p-5 xl:p-6 rounded-[2rem] border border-emerald-100 shadow-sm">
-                <MapPin className="text-emerald-500 mt-1 shrink-0" size={24} xl:size={28} strokeWidth={2.5} />
+                <MapPin className="text-emerald-500 mt-1 shrink-0 w-[24px] h-[24px] xl:w-[28px] xl:h-[28px]" strokeWidth={2.5} />
                 <div className="min-w-0">
                   <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em] mb-1.5">LOCATION</p>
                   <p className="text-xl xl:text-2xl font-extrabold text-slate-800 tracking-tight leading-snug break-words">
@@ -62,7 +62,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
               
               {task.attended && (
                 <div className="flex items-start gap-4 xl:gap-6 px-5 xl:px-6">
-                  <UserCheck className="text-emerald-500 mt-1 shrink-0" size={20} xl:size={24} />
+                  <UserCheck className="text-emerald-500 mt-1 shrink-0 w-[20px] h-[20px] xl:w-[24px] xl:h-[24px]" />
                   <div className="min-w-0">
                     <p className="text-[9px] xl:text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em] mb-1.5">PARTICIPANTS</p>
                     <p className="text-lg xl:text-xl font-bold text-slate-800 tracking-tight leading-snug break-words">{task.attended}</p>
