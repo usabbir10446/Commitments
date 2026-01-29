@@ -19,24 +19,24 @@ const LiveClock: React.FC<LiveClockProps> = ({ isCompact }) => {
 
   if (isCompact) {
     return (
-      <div className="flex items-center gap-1.5 lg:gap-6 overflow-hidden">
+      <div className="flex items-center gap-2 lg:gap-6 overflow-visible">
         {/* Central Clock - Minimized for mobile */}
         <div className="flex items-baseline gap-0.5 lg:gap-3 shrink-0">
-          <span className="text-xl lg:text-7xl font-black text-slate-900 tracking-tightest tabular-nums leading-none">
+          <span className="text-2xl lg:text-7xl font-black text-slate-900 tracking-tightest tabular-nums leading-none">
             {timeParts.slice(0, 2).join(':')}
           </span>
-          <span className="text-[9px] lg:text-3xl text-indigo-500 font-black opacity-90">
+          <span className="text-[10px] lg:text-3xl text-indigo-500 font-black opacity-90">
             :{timeParts[2]}
           </span>
         </div>
 
-        {/* Combined Dates - Highly Compact for small screens */}
-        <div className="flex flex-col border-l border-slate-200 pl-2 lg:pl-6 shrink-0 justify-center">
-          <p className="text-[8px] lg:text-[22px] font-black text-slate-900 uppercase tracking-tight whitespace-nowrap leading-none mb-0.5">
-            {formatFriendlyDate(now).split(',')[0]}
+        {/* Combined Dates - Bangla on top, English below */}
+        <div className="flex flex-col border-l-2 border-slate-200 pl-2 lg:pl-6 shrink-0 justify-center">
+          <p className="text-[9px] lg:text-[22px] font-black text-indigo-600 uppercase italic tracking-tight whitespace-nowrap leading-tight mb-0.5">
+            {formatBanglaDate(now)}
           </p>
-          <p className="text-[8px] lg:text-[22px] font-black text-indigo-600 uppercase italic tracking-tight whitespace-nowrap leading-none">
-            {formatBanglaDate(now).split(',')[0]}
+          <p className="text-[9px] lg:text-[22px] font-black text-slate-900 uppercase tracking-tight whitespace-nowrap leading-tight">
+            {formatFriendlyDate(now)}
           </p>
         </div>
       </div>
