@@ -27,6 +27,7 @@ export interface EmergencyMessage {
 
 export enum Tab {
   TASKS = 'tasks',
+  UPCOMING = 'upcoming',
   WELCOME = 'welcome',
   EMERGENCY = 'emergency'
 }

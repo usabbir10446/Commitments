@@ -20,62 +20,62 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
 
   if (isTVFeatured) {
     return (
-      <div className="relative h-full bg-[#F0FDF4] rounded-[1.5rem] lg:rounded-[4rem] p-5 lg:p-12 flex flex-col justify-between shadow-sm border border-emerald-100 group animate-in zoom-in duration-500 overflow-hidden">
+      <div className="relative h-full bg-[#F0FDF4] rounded-[1.5rem] lg:rounded-[4rem] p-4 lg:p-12 flex flex-col justify-between shadow-sm border border-emerald-100 group animate-in zoom-in duration-500 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-48 lg:w-80 h-48 lg:h-80 bg-white rounded-full blur-3xl opacity-80 pointer-events-none" />
         
         <div className="relative flex-1 flex flex-col min-h-0">
-          <div className="flex items-center justify-between mb-4 lg:mb-10 shrink-0 gap-4">
-            <div className="flex items-center gap-3 lg:gap-6 min-w-0 flex-1">
+          <div className="flex items-start justify-between mb-4 lg:mb-10 shrink-0 gap-2">
+            <div className="flex items-center gap-2 lg:gap-6 min-w-0 flex-1">
               <div className="bg-white p-2 lg:p-5 rounded-xl lg:rounded-3xl border border-emerald-200 shadow-sm shrink-0">
-                <Clock className="text-emerald-600 w-5 h-5 lg:w-10 lg:h-10" strokeWidth={2.5} />
+                <Clock className="text-emerald-600 w-4 h-4 lg:w-10 lg:h-10" strokeWidth={2.5} />
               </div>
-              <div className="min-w-0 max-w-[70%]">
-                <p className="text-[7px] lg:text-[12px] font-bold text-emerald-600 uppercase tracking-[0.2em] lg:tracking-[0.4em] mb-1">LIVE BROADCAST</p>
-                {/* Fixed Overlap: Reduced font size and forced ellipsis if too long */}
-                <h2 className="text-lg lg:text-4xl font-black text-slate-900 tracking-tighter tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
+              <div className="min-w-0 flex-1">
+                <p className="text-[6px] lg:text-[12px] font-bold text-emerald-600 uppercase tracking-[0.2em] lg:tracking-[0.4em] mb-0.5">LIVE BROADCAST</p>
+                {/* Fixed Overlap: Reduced font size on mobile and controlled wrapping */}
+                <h2 className="text-sm lg:text-4xl font-black text-slate-900 tracking-tighter tabular-nums truncate">
                   {task.timeBlock}
                 </h2>
               </div>
             </div>
             
-            <div className="flex items-center gap-1.5 lg:gap-4 px-2.5 lg:px-8 py-1 lg:py-4 bg-white border-2 border-emerald-400 rounded-lg lg:rounded-2xl shadow-md shrink-0 whitespace-nowrap">
-              <div className="w-2 h-2 lg:w-4 lg:h-4 bg-emerald-500 rounded-full animate-blink-intense" />
-              <span className="text-emerald-700 font-black text-[8px] lg:text-xl uppercase tracking-widest">Active</span>
+            <div className="flex items-center gap-1 lg:gap-4 px-2 lg:px-8 py-1 lg:py-4 bg-white border-2 border-emerald-400 rounded-lg lg:rounded-2xl shadow-md shrink-0 whitespace-nowrap">
+              <div className="w-1.5 h-1.5 lg:w-4 lg:h-4 bg-emerald-500 rounded-full animate-blink-intense" />
+              <span className="text-emerald-700 font-black text-[7px] lg:text-xl uppercase tracking-widest">Active</span>
             </div>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0">
-            <h3 className="text-xl lg:text-5xl font-black text-slate-900 leading-[1.1] tracking-tight uppercase mb-6 lg:mb-12 line-clamp-2 overflow-hidden break-words">
+            <h3 className="text-lg lg:text-5xl font-black text-slate-900 leading-tight tracking-tight uppercase mb-4 lg:mb-12 line-clamp-2 overflow-hidden break-words">
               {task.title}
             </h3>
 
-            <div className="space-y-3 lg:space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
-                <div className="flex items-start gap-3 lg:gap-6 bg-white/60 p-3.5 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
-                  <MapPin className="text-emerald-500 mt-1 shrink-0 w-5 h-5 lg:w-8 lg:h-8" strokeWidth={2.5} />
+            <div className="space-y-2 lg:space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-8">
+                <div className="flex items-start gap-2.5 lg:gap-6 bg-white/60 p-3 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
+                  <MapPin className="text-emerald-500 mt-1 shrink-0 w-4 h-4 lg:w-8 lg:h-8" strokeWidth={2.5} />
                   <div className="min-w-0">
-                    <p className="text-[7px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">LOCATION</p>
-                    <p className="text-sm lg:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">{task.venue}</p>
+                    <p className="text-[6px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">LOCATION</p>
+                    <p className="text-xs lg:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">{task.venue}</p>
                   </div>
                 </div>
 
                 {task.attended && (
-                  <div className="flex items-start gap-3 lg:gap-6 bg-white/60 p-3.5 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
-                    <UserCheck className="text-emerald-500 mt-1 shrink-0 w-5 h-5 lg:w-8 lg:h-8" strokeWidth={2.5} />
+                  <div className="flex items-start gap-2.5 lg:gap-6 bg-white/60 p-3 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
+                    <UserCheck className="text-emerald-500 mt-1 shrink-0 w-4 h-4 lg:w-8 lg:h-8" strokeWidth={2.5} />
                     <div className="min-w-0">
-                      <p className="text-[7px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ATTENDEES</p>
-                      <p className="text-sm lg:text-2xl font-bold text-slate-800 tracking-tight leading-tight">{task.attended}</p>
+                      <p className="text-[6px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">ATTENDEES</p>
+                      <p className="text-xs lg:text-2xl font-bold text-slate-800 tracking-tight leading-tight">{task.attended}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {task.remarks && (
-                <div className="flex items-start gap-3 lg:gap-6 bg-emerald-50/50 p-4 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-200/50">
-                  <FileText className="text-emerald-400 mt-1 shrink-0 w-5 h-5 lg:w-8 lg:h-8" strokeWidth={2.5} />
+                <div className="flex items-start gap-2.5 lg:gap-6 bg-emerald-50/50 p-3 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-200/50">
+                  <FileText className="text-emerald-400 mt-1 shrink-0 w-4 h-4 lg:w-8 lg:h-8" strokeWidth={2.5} />
                   <div className="min-w-0">
-                    <p className="text-[7px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">REMARKS</p>
-                    <p className="text-xs lg:text-2xl font-medium text-slate-600 italic leading-relaxed">{task.remarks}</p>
+                    <p className="text-[6px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">REMARKS</p>
+                    <p className="text-[10px] lg:text-2xl font-medium text-slate-600 italic leading-snug">{task.remarks}</p>
                   </div>
                 </div>
               )}
@@ -83,12 +83,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
           </div>
         </div>
 
-        <div className="absolute bottom-6 right-6 flex gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 no-capture">
-           <button onClick={() => onEdit(task)} className="p-2 lg:p-4 bg-white text-slate-400 hover:text-emerald-600 rounded-lg lg:rounded-2xl shadow-md border border-slate-100 active:scale-90 transition-all">
-             <Edit3 size={20} />
+        <div className="absolute bottom-4 right-4 flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 no-capture">
+           <button onClick={() => onEdit(task)} className="p-1.5 lg:p-4 bg-white text-slate-400 hover:text-emerald-600 rounded-lg lg:rounded-2xl shadow-md border border-slate-100 active:scale-90 transition-all">
+             <Edit3 size={16} />
            </button>
-           <button onClick={() => onDelete(task.id)} className="p-2 lg:p-4 bg-rose-50 text-rose-500 rounded-lg lg:rounded-2xl shadow-md border border-rose-100 active:scale-90 transition-all">
-             <Trash2 size={20} />
+           <button onClick={() => onDelete(task.id)} className="p-1.5 lg:p-4 bg-rose-50 text-rose-500 rounded-lg lg:rounded-2xl shadow-md border border-rose-100 active:scale-90 transition-all">
+             <Trash2 size={16} />
            </button>
         </div>
       </div>

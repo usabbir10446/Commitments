@@ -11,7 +11,7 @@ import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -76,12 +76,11 @@ const App: React.FC = () => {
     if (!reportRef.current) return;
     setIsCapturing(true);
     try {
-      // Small delay for rendering
       await new Promise(r => setTimeout(r, 200));
 
       const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
-        scale: 3, // Higher quality for sharing
+        scale: 3, 
         backgroundColor: '#ffffff',
         logging: false,
       });
@@ -186,6 +185,27 @@ const App: React.FC = () => {
       .sort((a, b) => a.times.start - b.times.start);
   }, [tasks]);
 
+  const groupedUpcomingTasks = useMemo(() => {
+    const today = getTodayString();
+    const future = tasks.filter(t => t.date > today);
+    const groups: Record<string, Task[]> = {};
+    
+    future.forEach(t => {
+      if (!groups[t.date]) groups[t.date] = [];
+      groups[t.date].push(t);
+    });
+    
+    const sortedDates = Object.keys(groups).sort();
+    return sortedDates.map(date => ({
+      date,
+      tasks: groups[date].sort((a, b) => {
+        const aStart = parseTimeBlock(a.timeBlock).start;
+        const bStart = parseTimeBlock(b.timeBlock).start;
+        return aStart - bStart;
+      })
+    }));
+  }, [tasks]);
+
   const activeTask = homepageTasks.find(t => t.status === TaskStatus.ACTIVE);
   const otherTasks = homepageTasks.filter(t => t.status !== TaskStatus.ACTIVE);
 
@@ -271,9 +291,9 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* HEADER */}
-      <header className="px-6 lg:px-12 py-2 lg:py-4 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
-        <div className="flex items-center gap-2 lg:gap-4 shrink-0 min-w-[140px] lg:min-w-[240px]">
+      {/* HEADER - Optimized for mobile space */}
+      <header className="px-4 lg:px-12 py-2 lg:py-4 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
+        <div className="flex items-center gap-2 lg:gap-4 shrink-0 min-w-0 lg:min-w-[240px]">
           <div className="w-8 h-8 lg:w-12 lg:h-12 bg-slate-900 rounded-lg lg:rounded-xl flex items-center justify-center shadow-lg">
             <Activity className="text-sky-400 w-4 h-4 lg:w-6 lg:h-6" />
           </div>
@@ -283,22 +303,22 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center px-6 overflow-hidden">
-          <div className="transform scale-[0.65] md:scale-75 lg:scale-100 max-w-full">
+        <div className="flex-1 flex justify-center px-2 lg:px-6 overflow-hidden">
+          <div className="max-w-full">
             <LiveClock isCompact />
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-[140px] lg:min-w-[280px]">
-           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
-             {isCapturing ? <Loader2 size={16} className="animate-spin lg:w-6 lg:h-6" /> : <Camera size={16} className="lg:w-6 lg:h-6" />}
+        <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-0 lg:min-w-[280px]">
+           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
+             {isCapturing ? <Loader2 size={14} className="animate-spin lg:w-6 lg:h-6" /> : <Camera size={14} className="lg:w-6 lg:h-6" />}
            </button>
-           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3.5 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-[0.2em] rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 lg:gap-2">
-             <Plus className="w-3 h-3 lg:w-4 lg:h-4" strokeWidth={3} />
+           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-1.5 lg:py-3.5 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-[0.2em] rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 lg:gap-2">
+             <Plus className="w-2.5 h-2.5 lg:w-4 lg:h-4" strokeWidth={3} />
              <span>NEW</span>
            </button>
-           <button onClick={() => setIsSearchOpen(true)} className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90">
-             <Search size={16} className="lg:w-6 lg:h-6" />
+           <button onClick={() => setIsSearchOpen(true)} className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90">
+             <Search size={14} className="lg:w-6 lg:h-6" />
            </button>
         </div>
       </header>
@@ -365,6 +385,65 @@ const App: React.FC = () => {
                </div>
             </div>
           </div>
+        ) : activeTab === Tab.UPCOMING ? (
+          <div className="flex-1 flex flex-col min-h-0 space-y-6 overflow-y-auto custom-scrollbar pr-1 lg:pr-4">
+            <div className="flex items-center gap-3 mb-4 lg:mb-10 px-2">
+              <Calendar className="text-indigo-600 w-6 h-6 lg:w-10 lg:h-10" />
+              <h2 className="text-lg lg:text-4xl font-black text-slate-900 uppercase tracking-tight italic">Upcoming Cmt</h2>
+            </div>
+            {groupedUpcomingTasks.length > 0 ? (
+              groupedUpcomingTasks.map(group => (
+                <div key={group.date} className="bg-white rounded-[2rem] lg:rounded-[4rem] border border-slate-100 overflow-hidden shadow-sm flex flex-col lg:flex-row mb-6 lg:mb-10">
+                  <div className="w-full lg:w-72 bg-slate-50 p-6 lg:p-12 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 shrink-0">
+                    <p className="text-[8px] lg:text-sm font-black text-indigo-500 uppercase tracking-[0.4em] mb-2">{formatBanglaDate(new Date(group.date))}</p>
+                    <h3 className="text-xl lg:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tighter italic">
+                      {formatFriendlyDate(new Date(group.date))}
+                    </h3>
+                  </div>
+                  <div className="flex-1 p-6 lg:p-12 space-y-4 lg:space-y-8">
+                    {group.tasks.map(task => (
+                      <div key={task.id} className="p-4 lg:p-10 bg-slate-50/50 rounded-2xl lg:rounded-[2.5rem] border border-slate-100 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10 hover:border-indigo-200 transition-colors group">
+                        <div className="flex flex-col lg:items-center lg:justify-center lg:border-r lg:border-slate-100 lg:pr-10 shrink-0">
+                          <span className="text-xs lg:text-2xl font-black text-indigo-600 tracking-tighter italic tabular-nums">{task.timeBlock}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-2 lg:mb-4">{task.title}</h4>
+                          <div className="flex flex-wrap gap-3 lg:gap-8">
+                            <div className="flex items-center gap-1 lg:gap-3 text-slate-500">
+                              <MapPin size={14} className="lg:w-6 lg:h-6" />
+                              <span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide">{task.venue}</span>
+                            </div>
+                            {task.attended && (
+                              <div className="flex items-center gap-1 lg:gap-3 text-slate-500 border-l border-slate-100 pl-3 lg:pl-8">
+                                <UserCheck size={14} className="lg:w-6 lg:h-6" />
+                                <span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide">{task.attended}</span>
+                              </div>
+                            )}
+                          </div>
+                          {task.remarks && (
+                            <div className="mt-3 lg:mt-6 pt-3 lg:pt-6 border-t border-slate-100/50 flex gap-1 lg:gap-3 italic text-slate-400">
+                              <FileText size={12} className="lg:w-5 lg:h-5 shrink-0" />
+                              <p className="text-[9px] lg:text-lg font-medium leading-relaxed">{task.remarks}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="lg:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-3 lg:p-6 bg-white border border-slate-100 rounded-xl lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all">
+                             <ChevronRight size={18} className="lg:w-8 lg:h-8" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+                <Calendar size={64} className="text-slate-100 mb-6" />
+                <p className="text-xl font-black text-slate-200 uppercase tracking-[0.5em] italic">No Future Sessions</p>
+              </div>
+            )}
+          </div>
         ) : activeTab === Tab.WELCOME ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar">
             <WelcomeTab 
@@ -392,18 +471,22 @@ const App: React.FC = () => {
       </main>
 
       {/* FOOTER - Labels now visible on mobile */}
-      <footer className="px-4 lg:px-24 py-2 lg:py-8 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-4 lg:gap-40 shrink-0 no-capture">
-        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <LayoutDashboard className="w-5 h-5 lg:w-8 lg:h-8" />
-          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Dashboard</span>
+      <footer className="px-2 lg:px-24 py-2 lg:py-6 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-1 lg:gap-24 shrink-0 no-capture z-50">
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
+          <LayoutDashboard className="w-5 h-5 lg:w-7 lg:h-7" />
+          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Dashboard</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <UserPlus className="w-5 h-5 lg:w-8 lg:h-8" />
-          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Welcome</span>
+        <button onClick={() => setActiveTab(Tab.UPCOMING)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.UPCOMING ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
+          <Calendar className="w-5 h-5 lg:w-7 lg:h-7" />
+          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Upcoming</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}>
-          <AlertCircle className="w-5 h-5 lg:w-8 lg:h-8" />
-          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Emg Msg</span>
+        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
+          <UserPlus className="w-5 h-5 lg:w-7 lg:h-7" />
+          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Welcome</span>
+        </button>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-105' : 'text-slate-400'}`}>
+          <AlertCircle className="w-5 h-5 lg:w-7 lg:h-7" />
+          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Emg Msg</span>
         </button>
       </footer>
 
