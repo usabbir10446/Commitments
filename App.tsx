@@ -77,20 +77,16 @@ const App: React.FC = () => {
     setIsCapturing(true);
     try {
       await new Promise(r => setTimeout(r, 200));
-
       const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
         scale: 3, 
         backgroundColor: '#ffffff',
         logging: false,
       });
-
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error("Canvas to Blob failed");
-
       const tomorrow = getTomorrowString();
       const file = new File([blob], `Daily_Cmt_Report_${tomorrow}.png`, { type: 'image/png' });
-
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
@@ -99,16 +95,11 @@ const App: React.FC = () => {
             text: `Schedule for ${tomorrow}`,
           });
         } catch (shareErr: any) {
-          if (shareErr.name !== 'AbortError') {
-            downloadCanvas(canvas);
-          }
+          if (shareErr.name !== 'AbortError') downloadCanvas(canvas);
         }
-      } else {
-        downloadCanvas(canvas);
-      }
+      } else downloadCanvas(canvas);
     } catch (err) {
       console.error("Capture failed:", err);
-      alert("Failed to generate report. Please try again.");
     } finally {
       setIsCapturing(false);
     }
@@ -139,9 +130,7 @@ const App: React.FC = () => {
   const triggerEmergency = async (text: string) => {
     if (!text.trim()) return;
     const result = await storageService.broadcastEmergency(text);
-    if (result) {
-      setEmergencyInput('');
-    }
+    if (result) setEmergencyInput('');
   };
 
   const homepageTasks = useMemo(() => {
@@ -154,8 +143,7 @@ const App: React.FC = () => {
 
     let activeTaskId: string | null = null;
     if (isToday) {
-      const ongoing = mappedTasks
-        .filter(t => currentMinutes >= t.times.start && currentMinutes < t.times.end);
+      const ongoing = mappedTasks.filter(t => currentMinutes >= t.times.start && currentMinutes < t.times.end);
       if (ongoing.length > 0) activeTaskId = ongoing[0].id;
     }
 
@@ -176,33 +164,23 @@ const App: React.FC = () => {
 
   const tomorrowTasks = useMemo(() => {
     const tomorrowStr = getTomorrowString();
-    return tasks
-      .filter(t => t.date === tomorrowStr)
-      .map(t => ({
-        ...t,
-        times: parseTimeBlock(t.timeBlock)
-      }))
-      .sort((a, b) => a.times.start - b.times.start);
+    return tasks.filter(t => t.date === tomorrowStr).map(t => ({
+      ...t,
+      times: parseTimeBlock(t.timeBlock)
+    })).sort((a, b) => a.times.start - b.times.start);
   }, [tasks]);
 
   const groupedUpcomingTasks = useMemo(() => {
     const today = getTodayString();
     const future = tasks.filter(t => t.date > today);
     const groups: Record<string, Task[]> = {};
-    
     future.forEach(t => {
       if (!groups[t.date]) groups[t.date] = [];
       groups[t.date].push(t);
     });
-    
-    const sortedDates = Object.keys(groups).sort();
-    return sortedDates.map(date => ({
+    return Object.keys(groups).sort().map(date => ({
       date,
-      tasks: groups[date].sort((a, b) => {
-        const aStart = parseTimeBlock(a.timeBlock).start;
-        const bStart = parseTimeBlock(b.timeBlock).start;
-        return aStart - bStart;
-      })
+      tasks: groups[date].sort((a, b) => parseTimeBlock(a.timeBlock).start - parseTimeBlock(b.timeBlock).start)
     }));
   }, [tasks]);
 
@@ -219,10 +197,7 @@ const App: React.FC = () => {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return tasks.filter(t => 
-      t.title.toLowerCase().includes(q) || 
-      t.venue.toLowerCase().includes(q)
-    );
+    return tasks.filter(t => t.title.toLowerCase().includes(q) || t.venue.toLowerCase().includes(q));
   }, [tasks, searchQuery]);
 
   return (
@@ -231,69 +206,36 @@ const App: React.FC = () => {
       <WelcomeOverlay task={activeWelcome} onStop={() => storageService.setWelcomeActive('', false)} />
       
       {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
-      <div 
-        ref={reportRef} 
-        style={{ position: 'absolute', left: '-9999px', top: '0', width: '800px', padding: '60px', backgroundColor: '#ffffff' }}
-      >
+      <div ref={reportRef} style={{ position: 'absolute', left: '-9999px', top: '0', width: '800px', padding: '60px', backgroundColor: '#ffffff' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '4px solid #1e293b', paddingBottom: '20px' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', marginBottom: '10px' }}>
-            Daily Cmt of Respected Comdt
-          </h1>
+          <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', marginBottom: '10px' }}>Daily Cmt of Respected Comdt</h1>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '20px', fontWeight: '800', color: '#4f46e5' }}>
             <span>{formatBanglaDate(new Date(Date.now() + 86400000))}</span>
             <span style={{ color: '#94a3b8' }}>|</span>
             <span>{formatFriendlyDate(new Date(Date.now() + 86400000))}</span>
           </div>
         </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {tomorrowTasks.length > 0 ? tomorrowTasks.map((task, idx) => (
             <div key={task.id} style={{ border: '2px solid #f1f5f9', borderRadius: '24px', padding: '24px', backgroundColor: '#f8fafc' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ backgroundColor: '#4f46e5', color: '#ffffff', padding: '6px 16px', borderRadius: '12px', fontSize: '18px', fontWeight: '900' }}>
-                    {task.timeBlock}
-                  </span>
-                </div>
+                <span style={{ backgroundColor: '#4f46e5', color: '#ffffff', padding: '6px 16px', borderRadius: '12px', fontSize: '18px', fontWeight: '900' }}>{task.timeBlock}</span>
                 <span style={{ color: '#94a3b8', fontSize: '14px', fontWeight: '800' }}>#S-{idx+1}</span>
               </div>
-              <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', textTransform: 'uppercase' }}>
-                {task.title}
-              </h2>
+              <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', textTransform: 'uppercase' }}>{task.title}</h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <MapPin size={18} color="#6366f1" />
-                  <span style={{ fontSize: '16px', fontWeight: '700' }}>Venue: {task.venue}</span>
-                </div>
-                {task.attended && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <UserCheck size={18} color="#6366f1" />
-                    <span style={{ fontSize: '16px', fontWeight: '700' }}>Atnd: {task.attended}</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={18} color="#6366f1" /> <span style={{ fontSize: '16px', fontWeight: '700' }}>Venue: {task.venue}</span></div>
+                {task.attended && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><UserCheck size={18} color="#6366f1" /> <span style={{ fontSize: '16px', fontWeight: '700' }}>Atnd: {task.attended}</span></div>}
               </div>
-              {task.remarks && (
-                <div style={{ marginTop: '16px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', display: 'flex', gap: '8px' }}>
-                  <FileText size={18} color="#94a3b8" />
-                  <p style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>{task.remarks}</p>
-                </div>
-              )}
+              {task.remarks && <div style={{ marginTop: '16px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', display: 'flex', gap: '8px' }}><FileText size={18} color="#94a3b8" /><p style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>{task.remarks}</p></div>}
             </div>
-          )) : (
-            <div style={{ textAlign: 'center', padding: '100px', border: '2px dashed #e2e8f0', borderRadius: '40px' }}>
-              <p style={{ fontSize: '24px', fontWeight: '800', color: '#cbd5e1', textTransform: 'uppercase' }}>No Sessions Scheduled for Tomorrow</p>
-            </div>
-          )}
-        </div>
-        
-        <div style={{ marginTop: '60px', textAlign: 'center', borderTop: '2px solid #f1f5f9', paddingTop: '20px' }}>
-          <p style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px' }}>Generated by Daily Cmt Dashboard 2.0</p>
+          )) : <div style={{ textAlign: 'center', padding: '100px', border: '2px dashed #e2e8f0', borderRadius: '40px' }}><p style={{ fontSize: '24px', fontWeight: '800', color: '#cbd5e1', textTransform: 'uppercase' }}>No Sessions Scheduled for Tomorrow</p></div>}
         </div>
       </div>
 
-      {/* HEADER - Optimized for mobile space */}
-      <header className="px-4 lg:px-12 py-2 lg:py-4 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
-        <div className="flex items-center gap-2 lg:gap-4 shrink-0 min-w-0 lg:min-w-[240px]">
+      {/* HEADER - Critical fix for mobile layout overflow */}
+      <header className="px-2 lg:px-12 py-2 lg:py-4 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
+        <div className="flex items-center gap-1.5 lg:gap-4 shrink-0 min-w-0">
           <div className="w-8 h-8 lg:w-12 lg:h-12 bg-slate-900 rounded-lg lg:rounded-xl flex items-center justify-center shadow-lg">
             <Activity className="text-sky-400 w-4 h-4 lg:w-6 lg:h-6" />
           </div>
@@ -303,218 +245,140 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center px-2 lg:px-6 overflow-hidden">
-          <div className="max-w-full">
+        <div className="flex-1 flex justify-center px-1 overflow-hidden">
+          <div className="max-w-full scale-90 sm:scale-100">
             <LiveClock isCompact />
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-0 lg:min-w-[280px]">
-           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
-             {isCapturing ? <Loader2 size={14} className="animate-spin lg:w-6 lg:h-6" /> : <Camera size={14} className="lg:w-6 lg:h-6" />}
+        <div className="flex items-center justify-end gap-1 lg:gap-4 shrink-0 no-capture min-w-0">
+           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50 shrink-0">
+             {isCapturing ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} className="lg:w-6 lg:h-6" />}
            </button>
-           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-1.5 lg:py-3.5 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-[0.2em] rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 lg:gap-2">
+           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-1.5 lg:py-3.5 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-wider rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 shrink-0">
              <Plus className="w-2.5 h-2.5 lg:w-4 lg:h-4" strokeWidth={3} />
              <span>NEW</span>
            </button>
-           <button onClick={() => setIsSearchOpen(true)} className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90">
+           <button onClick={() => setIsSearchOpen(true)} className="w-7 h-7 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 shrink-0">
              <Search size={14} className="lg:w-6 lg:h-6" />
            </button>
         </div>
       </header>
 
-      <main className="flex-1 p-3 lg:p-12 overflow-hidden min-h-0">
+      <main className="flex-1 p-2 lg:p-12 overflow-hidden min-h-0">
         {activeTab === Tab.TASKS ? (
           <div className="h-full w-full flex flex-col lg:flex-row gap-4 lg:gap-12 min-h-0 overflow-hidden">
             <div className="w-full lg:w-[42%] flex flex-col min-h-0 shrink-0 lg:shrink">
-              <div className="flex items-center gap-2 mb-2 lg:mb-6 px-2 shrink-0">
+              <div className="flex items-center gap-2 mb-2 lg:mb-6 px-1 shrink-0">
                 <div className="w-1.5 h-1.5 lg:w-3 lg:h-3 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_15px_rgba(16,185,129,0.7)]" />
-                <h2 className="text-[6px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-900">Priority Monitor</h2>
+                <h2 className="text-[7px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-900">Priority Monitor</h2>
               </div>
-              
               <div className="flex-1 min-h-0">
                 {activeTask ? (
-                  <TaskCard 
-                    task={activeTask} 
-                    status={TaskStatus.ACTIVE} 
-                    onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} 
-                    onDelete={handleDeleteTask}
-                    isTVFeatured={true}
-                  />
+                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTVFeatured={true} />
                 ) : (
-                  <div className="h-40 lg:h-full bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-14 text-center shadow-sm">
-                    <Calendar className="text-slate-100 mb-2 lg:mb-10 w-8 h-8 lg:w-32 lg:h-32" />
+                  <div className="h-full bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-14 text-center shadow-sm">
+                    <Calendar className="text-slate-100 mb-4 lg:mb-10 w-12 h-12 lg:w-32 lg:h-32" />
                     <h3 className="text-xs lg:text-5xl font-black text-slate-200 uppercase italic">System Idle</h3>
-                    <p className="text-[6px] lg:text-sm text-slate-400 font-bold uppercase tracking-[0.3em] lg:tracking-[0.6em] mt-3">Ready for broadcast</p>
                   </div>
                 )}
               </div>
             </div>
-
             <div className="flex-1 flex flex-col min-h-0 mt-2 lg:mt-0">
-               <div className="flex items-center justify-between mb-2 lg:mb-6 px-2 shrink-0">
-                 <h2 className="text-[6px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-400">Daily Timeline</h2>
+               <div className="flex items-center justify-between mb-2 lg:mb-6 px-1 shrink-0">
+                 <h2 className="text-[7px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-400">Daily Timeline</h2>
                  <div className="bg-white border border-slate-100 px-2 lg:px-6 py-0.5 lg:py-2 rounded-lg lg:rounded-2xl shadow-xs">
-                    <span className="text-[5px] lg:text-xs font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
+                    <span className="text-[6px] lg:text-xs font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
                  </div>
                </div>
-
-               <div className="flex-1 flex flex-col min-h-0 lg:overflow-hidden lg:pr-2">
-                  <div className="flex flex-col gap-1.5 lg:gap-3 h-full overflow-y-auto lg:overflow-hidden custom-scrollbar">
+               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                  <div className="flex flex-col gap-2 lg:gap-3 h-full overflow-y-auto custom-scrollbar pr-1">
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
-                        <div key={task.id} className="flex-1 min-h-[60px] lg:min-h-0">
-                          <TaskCard 
-                            task={task} 
-                            status={task.status} 
-                            isNextUpcoming={(task as any).isNextUpcoming}
-                            onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} 
-                            onDelete={handleDeleteTask}
-                            isTV={true}
-                            fontSizeClass={dynamicFontSize}
-                          />
-                        </div>
+                        <div key={task.id} className="min-h-[65px] lg:min-h-0"><TaskCard task={task} status={task.status} isNextUpcoming={(task as any).isNextUpcoming} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTV={true} fontSizeClass={dynamicFontSize} /></div>
                       ))
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-50 text-slate-100">
-                         <Calendar className="mb-4 opacity-10 w-10 h-10 lg:w-24 lg:h-24" />
-                         <span className="italic font-black uppercase tracking-[0.3em] text-[10px] lg:text-3xl">No Records</span>
-                      </div>
-                    )}
+                    ) : <div className="h-full flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-50 text-slate-100"><p className="italic font-black uppercase tracking-[0.3em] text-xs lg:text-3xl">No Records</p></div>}
                   </div>
                </div>
             </div>
           </div>
         ) : activeTab === Tab.UPCOMING ? (
-          <div className="flex-1 flex flex-col min-h-0 space-y-6 overflow-y-auto custom-scrollbar pr-1 lg:pr-4">
-            <div className="flex items-center gap-3 mb-4 lg:mb-10 px-2">
-              <Calendar className="text-indigo-600 w-6 h-6 lg:w-10 lg:h-10" />
-              <h2 className="text-lg lg:text-4xl font-black text-slate-900 uppercase tracking-tight italic">Upcoming Cmt</h2>
+          <div className="flex-1 flex flex-col min-h-0 space-y-4 lg:space-y-6 overflow-y-auto custom-scrollbar pr-1 lg:pr-4">
+            <div className="flex items-center gap-2 mb-2 lg:mb-10 px-1">
+              <Calendar className="text-indigo-600 w-5 h-5 lg:w-10 lg:h-10" />
+              <h2 className="text-sm lg:text-4xl font-black text-slate-900 uppercase tracking-tight italic">Upcoming Cmt</h2>
             </div>
-            {groupedUpcomingTasks.length > 0 ? (
-              groupedUpcomingTasks.map(group => (
-                <div key={group.date} className="bg-white rounded-[2rem] lg:rounded-[4rem] border border-slate-100 overflow-hidden shadow-sm flex flex-col lg:flex-row mb-6 lg:mb-10">
-                  <div className="w-full lg:w-72 bg-slate-50 p-6 lg:p-12 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 shrink-0">
-                    <p className="text-[8px] lg:text-sm font-black text-indigo-500 uppercase tracking-[0.4em] mb-2">{formatBanglaDate(new Date(group.date))}</p>
-                    <h3 className="text-xl lg:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tighter italic">
-                      {formatFriendlyDate(new Date(group.date))}
-                    </h3>
-                  </div>
-                  <div className="flex-1 p-6 lg:p-12 space-y-4 lg:space-y-8">
-                    {group.tasks.map(task => (
-                      <div key={task.id} className="p-4 lg:p-10 bg-slate-50/50 rounded-2xl lg:rounded-[2.5rem] border border-slate-100 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10 hover:border-indigo-200 transition-colors group">
-                        <div className="flex flex-col lg:items-center lg:justify-center lg:border-r lg:border-slate-100 lg:pr-10 shrink-0">
-                          <span className="text-xs lg:text-2xl font-black text-indigo-600 tracking-tighter italic tabular-nums">{task.timeBlock}</span>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-2 lg:mb-4">{task.title}</h4>
-                          <div className="flex flex-wrap gap-3 lg:gap-8">
-                            <div className="flex items-center gap-1 lg:gap-3 text-slate-500">
-                              <MapPin size={14} className="lg:w-6 lg:h-6" />
-                              <span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide">{task.venue}</span>
-                            </div>
-                            {task.attended && (
-                              <div className="flex items-center gap-1 lg:gap-3 text-slate-500 border-l border-slate-100 pl-3 lg:pl-8">
-                                <UserCheck size={14} className="lg:w-6 lg:h-6" />
-                                <span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide">{task.attended}</span>
-                              </div>
-                            )}
-                          </div>
-                          {task.remarks && (
-                            <div className="mt-3 lg:mt-6 pt-3 lg:pt-6 border-t border-slate-100/50 flex gap-1 lg:gap-3 italic text-slate-400">
-                              <FileText size={12} className="lg:w-5 lg:h-5 shrink-0" />
-                              <p className="text-[9px] lg:text-lg font-medium leading-relaxed">{task.remarks}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="lg:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-3 lg:p-6 bg-white border border-slate-100 rounded-xl lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all">
-                             <ChevronRight size={18} className="lg:w-8 lg:h-8" />
-                          </button>
+            {groupedUpcomingTasks.length > 0 ? groupedUpcomingTasks.map(group => (
+              <div key={group.date} className="bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 overflow-hidden shadow-sm flex flex-col lg:flex-row mb-4 lg:mb-10">
+                <div className="w-full lg:w-72 bg-slate-50 p-4 lg:p-12 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 shrink-0">
+                  <p className="text-[7px] lg:text-sm font-black text-indigo-500 uppercase tracking-widest mb-1">{formatBanglaDate(new Date(group.date))}</p>
+                  <h3 className="text-lg lg:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tighter italic">{formatFriendlyDate(new Date(group.date))}</h3>
+                </div>
+                <div className="flex-1 p-4 lg:p-12 space-y-3 lg:space-y-8">
+                  {group.tasks.map(task => (
+                    <div key={task.id} className="p-3 lg:p-10 bg-slate-50/50 rounded-xl lg:rounded-[2.5rem] border border-slate-100 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-10 hover:border-indigo-200 transition-colors group">
+                      <div className="flex flex-col lg:items-center lg:justify-center lg:border-r lg:border-slate-100 lg:pr-10 shrink-0"><span className="text-[10px] lg:text-2xl font-black text-indigo-600 tracking-tighter italic tabular-nums">{task.timeBlock}</span></div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-1 lg:mb-4 truncate">{task.title}</h4>
+                        <div className="flex flex-wrap gap-2 lg:gap-8">
+                          <div className="flex items-center gap-1 lg:gap-3 text-slate-500"><MapPin size={10} className="lg:w-6 lg:h-6" /><span className="text-[8px] lg:text-xl font-bold uppercase tracking-wide truncate">{task.venue}</span></div>
+                          {task.attended && <div className="flex items-center gap-1 lg:gap-3 text-slate-500 border-l border-slate-100 pl-2 lg:pl-8"><UserCheck size={10} className="lg:w-6 lg:h-6" /><span className="text-[8px] lg:text-xl font-bold uppercase tracking-wide truncate">{task.attended}</span></div>}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-2 lg:p-6 bg-white border border-slate-100 rounded-lg lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all shrink-0 self-end lg:self-center"><ChevronRight size={14} className="lg:w-8 lg:h-8" /></button>
+                    </div>
+                  ))}
                 </div>
-              ))
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
-                <Calendar size={64} className="text-slate-100 mb-6" />
-                <p className="text-xl font-black text-slate-200 uppercase tracking-[0.5em] italic">No Future Sessions</p>
               </div>
-            )}
+            )) : <div className="flex-1 flex flex-col items-center justify-center py-10 bg-white rounded-[2rem] border-2 border-dashed border-slate-100"><p className="text-xs lg:text-3xl font-black text-slate-200 uppercase italic">No Future Sessions</p></div>}
           </div>
         ) : activeTab === Tab.WELCOME ? (
-          <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar">
-            <WelcomeTab 
-              tasks={welcomeTasks} 
-              onAdd={async (wt) => await storageService.saveWelcomeTask(wt)} 
-              onStart={(id) => storageService.setWelcomeActive(id, true)} 
-              onStop={() => storageService.setWelcomeActive('', false)} 
-              onDelete={(id) => storageService.deleteWelcomeTask(id)} 
-            />
-          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar"><WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => await storageService.saveWelcomeTask(wt)} onStart={(id) => storageService.setWelcomeActive(id, true)} onStop={() => storageService.setWelcomeActive('', false)} onDelete={(id) => storageService.deleteWelcomeTask(id)} /></div>
         ) : (
-          <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center px-4">
+          <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center p-4">
             <div className="bg-white p-6 lg:p-20 rounded-[2rem] lg:rounded-[5rem] shadow-2xl border border-slate-50 w-full text-center">
               <div className="flex flex-col items-center gap-4 lg:gap-8 mb-6 lg:mb-16">
-                 <div className="w-12 h-12 lg:w-28 lg:h-28 bg-rose-50 text-rose-600 rounded-2xl lg:rounded-[2.5rem] flex items-center justify-center">
-                    <AlertCircle className="w-6 h-6 lg:w-16 lg:h-16" />
-                 </div>
-                 <h3 className="text-sm lg:text-4xl font-black text-rose-600 uppercase tracking-[0.3em] lg:tracking-[0.6em]">Urgent Broadcast</h3>
+                 <div className="w-12 h-12 lg:w-28 lg:h-28 bg-rose-50 text-rose-600 rounded-2xl lg:rounded-[2.5rem] flex items-center justify-center"><AlertCircle className="w-6 h-6 lg:w-16 lg:h-16" /></div>
+                 <h3 className="text-xs lg:text-4xl font-black text-rose-600 uppercase tracking-[0.3em] lg:tracking-[0.6em]">Urgent Broadcast</h3>
               </div>
-              <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl lg:rounded-[3rem] px-6 lg:px-14 py-4 lg:py-10 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-lg lg:text-5xl text-center leading-relaxed" placeholder="Content..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
-              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-6 lg:mt-14 bg-rose-600 text-white font-black uppercase tracking-[0.3em] lg:tracking-[0.5em] py-4 lg:py-12 rounded-xl lg:rounded-[3.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95 text-xs lg:text-2xl">Push Signal</button>
+              <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-4 lg:py-10 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-sm lg:text-5xl text-center leading-relaxed" placeholder="Content..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
+              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-6 lg:mt-14 bg-rose-600 text-white font-black uppercase tracking-widest py-4 lg:py-12 rounded-xl lg:rounded-[3.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95 text-xs lg:text-2xl italic">Push Signal</button>
             </div>
           </div>
         )}
       </main>
 
-      {/* FOOTER - Labels now visible on mobile */}
-      <footer className="px-2 lg:px-24 py-2 lg:py-6 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-1 lg:gap-24 shrink-0 no-capture z-50">
-        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
-          <LayoutDashboard className="w-5 h-5 lg:w-7 lg:h-7" />
-          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Dashboard</span>
+      {/* FOOTER - Engineered for maximum visibility on all mobile screens */}
+      <footer className="px-1 lg:px-24 py-3 lg:py-6 bg-white border-t border-slate-200 flex justify-around lg:justify-center gap-0 lg:gap-24 shrink-0 no-capture z-[999] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+          <LayoutDashboard className={`w-5 h-5 lg:w-7 lg:h-7 ${activeTab === Tab.TASKS ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+          <span className="text-[9px] lg:text-xs font-black uppercase tracking-tight">Dashboard</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.UPCOMING)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.UPCOMING ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
-          <Calendar className="w-5 h-5 lg:w-7 lg:h-7" />
-          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Upcoming</span>
+        <button onClick={() => setActiveTab(Tab.UPCOMING)} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === Tab.UPCOMING ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+          <Calendar className={`w-5 h-5 lg:w-7 lg:h-7 ${activeTab === Tab.UPCOMING ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+          <span className="text-[9px] lg:text-xs font-black uppercase tracking-tight">Upcoming</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-105' : 'text-slate-400'}`}>
-          <UserPlus className="w-5 h-5 lg:w-7 lg:h-7" />
-          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Welcome</span>
+        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+          <UserPlus className={`w-5 h-5 lg:w-7 lg:h-7 ${activeTab === Tab.WELCOME ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+          <span className="text-[9px] lg:text-xs font-black uppercase tracking-tight">Welcome</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-105' : 'text-slate-400'}`}>
-          <AlertCircle className="w-5 h-5 lg:w-7 lg:h-7" />
-          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Emg Msg</span>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-400'}`}>
+          <AlertCircle className={`w-5 h-5 lg:w-7 lg:h-7 ${activeTab === Tab.EMERGENCY ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+          <span className="text-[9px] lg:text-xs font-black uppercase tracking-tight">Emg Msg</span>
         </button>
       </footer>
 
-      {isModalOpen && (
-        <TaskModal 
-          task={editingTask} 
-          onClose={() => { setIsModalOpen(false); setEditingTask(null); }} 
-          onSave={handleSaveTask} 
-          onDelete={handleDeleteTask} 
-        />
-      )}
-      
+      {isModalOpen && <TaskModal task={editingTask} onClose={() => { setIsModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} onDelete={handleDeleteTask} />}
       {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col p-6 lg:p-24 animate-in slide-in-from-top duration-500">
-          <div className="flex justify-between items-center mb-6 lg:mb-14 w-full max-w-7xl mx-auto">
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col p-4 lg:p-24 animate-in slide-in-from-top duration-500">
+          <div className="flex justify-between items-center mb-6 w-full max-w-7xl mx-auto">
             <h2 className="text-xl lg:text-6xl font-black text-slate-900 italic uppercase">Archive</h2>
-            <button onClick={() => setIsSearchOpen(false)} className="p-3 lg:p-8 bg-slate-100 rounded-xl lg:rounded-3xl active:scale-90 transition-all"><X className="w-5 h-5 lg:w-12 lg:h-12" /></button>
+            <button onClick={() => setIsSearchOpen(false)} className="p-2 lg:p-8 bg-slate-100 rounded-xl lg:rounded-3xl active:scale-90"><X className="w-6 h-6 lg:w-12 lg:h-12" /></button>
           </div>
           <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
-            <input type="text" placeholder="Search..." className="w-full bg-slate-50 border-2 lg:border-[4px] border-slate-100 rounded-xl lg:rounded-[3rem] px-6 lg:px-14 py-4 lg:py-14 text-lg lg:text-6xl font-black outline-none focus:border-indigo-600 transition-all mb-6 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
-            <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 lg:gap-8 pb-20 custom-scrollbar">
-              {searchResults.length > 0 ? (
-                searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} /></div>)
-              ) : searchQuery && (
-                <div className="col-span-full py-10 text-center">
-                   <p className="text-lg lg:text-5xl font-black text-slate-200 uppercase tracking-widest">No Matches</p>
-                </div>
-              )}
+            <input type="text" placeholder="Search..." className="w-full bg-slate-50 border-2 lg:border-[4px] border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-3 lg:py-14 text-lg lg:text-6xl font-black outline-none focus:border-indigo-600 transition-all mb-6 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+            <div className="flex-1 overflow-y-auto flex flex-col gap-3 lg:gap-8 pb-10 custom-scrollbar">
+              {searchResults.length > 0 ? searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} /></div>) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
             </div>
           </div>
         </div>

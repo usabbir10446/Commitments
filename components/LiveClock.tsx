@@ -19,30 +19,23 @@ const LiveClock: React.FC<LiveClockProps> = ({ isCompact }) => {
 
   if (isCompact) {
     return (
-      <div className="flex items-center gap-2 lg:gap-6 overflow-hidden">
-        {/* Bangla Date - Optimized size to prevent overlap with logo */}
-        <div className="hidden sm:block text-right shrink-0">
-          <p className="text-[11px] lg:text-[22px] font-black text-indigo-600 uppercase tracking-tight italic whitespace-nowrap">
-            {formatBanglaDate(now)}
-          </p>
-        </div>
-
-        {/* Central Clock */}
-        <div className="flex items-baseline gap-1 lg:gap-3 px-2 lg:px-6 sm:border-x-2 border-slate-100/50 shrink-0">
+      <div className="flex items-center gap-1.5 lg:gap-6 overflow-hidden">
+        {/* Central Clock - Minimized for mobile */}
+        <div className="flex items-baseline gap-0.5 lg:gap-3 shrink-0">
           <span className="text-xl lg:text-7xl font-black text-slate-900 tracking-tightest tabular-nums leading-none">
             {timeParts.slice(0, 2).join(':')}
           </span>
-          <span className="text-[8px] lg:text-3xl text-indigo-500 font-black opacity-90">
+          <span className="text-[9px] lg:text-3xl text-indigo-500 font-black opacity-90">
             :{timeParts[2]}
           </span>
         </div>
 
-        {/* English Date - Sized to match Bangla and stay clear of buttons */}
-        <div className="text-left shrink-0">
-          <p className="text-[10px] lg:text-[22px] font-black text-slate-900 uppercase tracking-tight whitespace-nowrap leading-none mb-0.5">
+        {/* Combined Dates - Highly Compact for small screens */}
+        <div className="flex flex-col border-l border-slate-200 pl-2 lg:pl-6 shrink-0 justify-center">
+          <p className="text-[8px] lg:text-[22px] font-black text-slate-900 uppercase tracking-tight whitespace-nowrap leading-none mb-0.5">
             {formatFriendlyDate(now).split(',')[0]}
           </p>
-          <p className="sm:hidden text-[9px] font-black text-indigo-600 uppercase italic leading-none">
+          <p className="text-[8px] lg:text-[22px] font-black text-indigo-600 uppercase italic tracking-tight whitespace-nowrap leading-none">
             {formatBanglaDate(now).split(',')[0]}
           </p>
         </div>
