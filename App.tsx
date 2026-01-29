@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types';
 import { storageService } from './services/storageService';
 import { initializeDatabase } from './services/setupData';
-import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString } from './utils/time';
+import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, getTomorrowString, formatFriendlyDate, formatBanglaDate } from './utils/time';
 import { db } from './services/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import LiveClock from './components/LiveClock';
@@ -11,11 +11,11 @@ import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2 } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
-  const captureRef = useRef<HTMLDivElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>(Tab.TASKS);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [welcomeTasks, setWelcomeTasks] = useState<WelcomeTask[]>([]);
@@ -73,33 +73,31 @@ const App: React.FC = () => {
   }, []);
 
   const handleCapture = async () => {
-    if (!captureRef.current) return;
+    if (!reportRef.current) return;
     setIsCapturing(true);
     try {
-      await new Promise(r => setTimeout(r, 100));
+      // Small delay for rendering
+      await new Promise(r => setTimeout(r, 200));
 
-      const canvas = await html2canvas(captureRef.current, {
+      const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
-        scale: 2,
-        backgroundColor: '#FBFBFD',
+        scale: 3, // Higher quality for sharing
+        backgroundColor: '#ffffff',
         logging: false,
-        onclone: (clonedDoc) => {
-          const elementsToHide = clonedDoc.querySelectorAll('.no-capture');
-          elementsToHide.forEach(el => (el as HTMLElement).style.display = 'none');
-        }
       });
 
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error("Canvas to Blob failed");
 
-      const file = new File([blob], `Daily_Cmt_${getTodayString()}.png`, { type: 'image/png' });
+      const tomorrow = getTomorrowString();
+      const file = new File([blob], `Daily_Cmt_Report_${tomorrow}.png`, { type: 'image/png' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
-            title: 'Daily Cmt Dashboard',
-            text: `Schedule for ${getTodayString()}`,
+            title: 'Daily Cmt Report',
+            text: `Schedule for ${tomorrow}`,
           });
         } catch (shareErr: any) {
           if (shareErr.name !== 'AbortError') {
@@ -111,6 +109,7 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Capture failed:", err);
+      alert("Failed to generate report. Please try again.");
     } finally {
       setIsCapturing(false);
     }
@@ -118,7 +117,7 @@ const App: React.FC = () => {
 
   const downloadCanvas = (canvas: HTMLCanvasElement) => {
     const link = document.createElement('a');
-    link.download = `Daily_Cmt_${getTodayString()}.png`;
+    link.download = `Daily_Cmt_Report_${getTomorrowString()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -176,6 +175,17 @@ const App: React.FC = () => {
     }));
   }, [tasks, currentMinutes, viewDate]);
 
+  const tomorrowTasks = useMemo(() => {
+    const tomorrowStr = getTomorrowString();
+    return tasks
+      .filter(t => t.date === tomorrowStr)
+      .map(t => ({
+        ...t,
+        times: parseTimeBlock(t.timeBlock)
+      }))
+      .sort((a, b) => a.times.start - b.times.start);
+  }, [tasks]);
+
   const activeTask = homepageTasks.find(t => t.status === TaskStatus.ACTIVE);
   const otherTasks = homepageTasks.filter(t => t.status !== TaskStatus.ACTIVE);
 
@@ -196,13 +206,73 @@ const App: React.FC = () => {
   }, [tasks, searchQuery]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#FBFBFD]" ref={captureRef}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#FBFBFD]">
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
       <WelcomeOverlay task={activeWelcome} onStop={() => storageService.setWelcomeActive('', false)} />
       
-      {/* Header layout optimized with safety padding */}
+      {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
+      <div 
+        ref={reportRef} 
+        style={{ position: 'absolute', left: '-9999px', top: '0', width: '800px', padding: '60px', backgroundColor: '#ffffff' }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '4px solid #1e293b', paddingBottom: '20px' }}>
+          <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', marginBottom: '10px' }}>
+            Daily Cmt of Respected Comdt
+          </h1>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '20px', fontWeight: '800', color: '#4f46e5' }}>
+            <span>{formatBanglaDate(new Date(Date.now() + 86400000))}</span>
+            <span style={{ color: '#94a3b8' }}>|</span>
+            <span>{formatFriendlyDate(new Date(Date.now() + 86400000))}</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {tomorrowTasks.length > 0 ? tomorrowTasks.map((task, idx) => (
+            <div key={task.id} style={{ border: '2px solid #f1f5f9', borderRadius: '24px', padding: '24px', backgroundColor: '#f8fafc' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ backgroundColor: '#4f46e5', color: '#ffffff', padding: '6px 16px', borderRadius: '12px', fontSize: '18px', fontWeight: '900' }}>
+                    {task.timeBlock}
+                  </span>
+                </div>
+                <span style={{ color: '#94a3b8', fontSize: '14px', fontWeight: '800' }}>#S-{idx+1}</span>
+              </div>
+              <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', textTransform: 'uppercase' }}>
+                {task.title}
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MapPin size={18} color="#6366f1" />
+                  <span style={{ fontSize: '16px', fontWeight: '700' }}>Venue: {task.venue}</span>
+                </div>
+                {task.attended && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <UserCheck size={18} color="#6366f1" />
+                    <span style={{ fontSize: '16px', fontWeight: '700' }}>Atnd: {task.attended}</span>
+                  </div>
+                )}
+              </div>
+              {task.remarks && (
+                <div style={{ marginTop: '16px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', display: 'flex', gap: '8px' }}>
+                  <FileText size={18} color="#94a3b8" />
+                  <p style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>{task.remarks}</p>
+                </div>
+              )}
+            </div>
+          )) : (
+            <div style={{ textAlign: 'center', padding: '100px', border: '2px dashed #e2e8f0', borderRadius: '40px' }}>
+              <p style={{ fontSize: '24px', fontWeight: '800', color: '#cbd5e1', textTransform: 'uppercase' }}>No Sessions Scheduled for Tomorrow</p>
+            </div>
+          )}
+        </div>
+        
+        <div style={{ marginTop: '60px', textAlign: 'center', borderTop: '2px solid #f1f5f9', paddingTop: '20px' }}>
+          <p style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px' }}>Generated by Daily Cmt Dashboard 2.0</p>
+        </div>
+      </div>
+
+      {/* HEADER */}
       <header className="px-6 lg:px-12 py-2 lg:py-4 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
-        {/* LEFT: Branding */}
         <div className="flex items-center gap-2 lg:gap-4 shrink-0 min-w-[140px] lg:min-w-[240px]">
           <div className="w-8 h-8 lg:w-12 lg:h-12 bg-slate-900 rounded-lg lg:rounded-xl flex items-center justify-center shadow-lg">
             <Activity className="text-sky-400 w-4 h-4 lg:w-6 lg:h-6" />
@@ -213,14 +283,12 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* CENTER: Clock and Dates */}
         <div className="flex-1 flex justify-center px-6 overflow-hidden">
           <div className="transform scale-[0.65] md:scale-75 lg:scale-100 max-w-full">
             <LiveClock isCompact />
           </div>
         </div>
 
-        {/* RIGHT: Actions */}
         <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-[140px] lg:min-w-[280px]">
            <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
              {isCapturing ? <Loader2 size={16} className="animate-spin lg:w-6 lg:h-6" /> : <Camera size={16} className="lg:w-6 lg:h-6" />}
@@ -323,18 +391,19 @@ const App: React.FC = () => {
         )}
       </main>
 
+      {/* FOOTER - Labels now visible on mobile */}
       <footer className="px-4 lg:px-24 py-2 lg:py-8 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-4 lg:gap-40 shrink-0 no-capture">
         <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <LayoutDashboard className="w-4 h-4 lg:w-8 lg:h-8" />
-          <span className="text-[5px] lg:text-sm font-black uppercase tracking-widest">Dash</span>
+          <LayoutDashboard className="w-5 h-5 lg:w-8 lg:h-8" />
+          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Dashboard</span>
         </button>
         <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <UserPlus className="w-4 h-4 lg:w-8 lg:h-8" />
-          <span className="text-[5px] lg:text-sm font-black uppercase tracking-widest">Welcome</span>
+          <UserPlus className="w-5 h-5 lg:w-8 lg:h-8" />
+          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Welcome</span>
         </button>
         <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-4 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}>
-          <AlertCircle className="w-4 h-4 lg:w-8 lg:h-8" />
-          <span className="text-[5px] lg:text-sm font-black uppercase tracking-widest">Emg Msg</span>
+          <AlertCircle className="w-5 h-5 lg:w-8 lg:h-8" />
+          <span className="text-[10px] lg:text-sm font-black uppercase tracking-widest">Emg Msg</span>
         </button>
       </footer>
 
