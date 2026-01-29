@@ -11,7 +11,8 @@ import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
   const captureRef = useRef<HTMLDivElement>(null);
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [welcomeTasks, setWelcomeTasks] = useState<WelcomeTask[]>([]);
   const [emergencies, setEmergencies] = useState<EmergencyMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCapturing, setIsCapturing] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -69,6 +71,27 @@ const App: React.FC = () => {
       clearInterval(timer);
     };
   }, []);
+
+  const handleCapture = async () => {
+    if (!captureRef.current) return;
+    setIsCapturing(true);
+    try {
+      const canvas = await html2canvas(captureRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: '#FBFBFD',
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.download = `Dashboard_${getTodayString()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error("Capture failed:", err);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
     const saved = await storageService.saveTask({ ...taskData, id: editingTask?.id });
@@ -128,14 +151,13 @@ const App: React.FC = () => {
 
   const dynamicFontSize = useMemo(() => {
     const count = otherTasks.length;
-    if (count === 0) return 'text-xl xl:text-3xl';
+    if (count === 0) return 'text-lg lg:text-3xl';
     const maxTitleLen = Math.max(...otherTasks.map(t => t.title.length));
     if (count <= 3) {
-      if (maxTitleLen > 60) return 'text-lg xl:text-2xl';
-      return 'text-xl xl:text-4xl';
+      if (maxTitleLen > 60) return 'text-base lg:text-2xl';
+      return 'text-lg lg:text-4xl';
     }
-    if (count <= 6) return 'text-base xl:text-2xl';
-    return 'text-sm xl:text-xl';
+    return 'text-sm lg:text-xl';
   }, [otherTasks]);
 
   const searchResults = useMemo(() => {
@@ -152,45 +174,48 @@ const App: React.FC = () => {
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
       <WelcomeOverlay task={activeWelcome} onStop={() => storageService.setWelcomeActive('', false)} />
       
-      {/* GLOBAL HEADER - Strict 3-column layout */}
-      <header className="px-6 xl:px-12 py-3 grid grid-cols-[1.2fr_2fr_1.2fr] items-center border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
-        <div className="flex items-center gap-3 xl:gap-4">
-          <div className="w-9 h-9 xl:w-11 xl:h-11 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg">
-            <Activity className="text-sky-400 w-[18px] h-[18px] xl:w-[22px] xl:h-[22px]" />
+      {/* HEADER - Responsive */}
+      <header className="px-4 lg:px-12 py-3 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1.2fr_2fr_1.2fr] items-center border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
+        <div className="flex items-center gap-2 lg:gap-4">
+          <div className="w-8 h-8 lg:w-11 lg:h-11 bg-slate-900 rounded-lg lg:rounded-xl flex items-center justify-center shadow-lg">
+            <Activity className="text-sky-400 w-4 h-4 lg:w-5 lg:h-5" />
           </div>
-          <div className="block">
-            <h1 className="text-sm xl:text-xl font-black tracking-tightest uppercase italic text-slate-900 leading-none">Daily <span className="text-sky-400">Cmt</span></h1>
-            <p className="text-[5px] xl:text-[8px] font-black text-slate-400 uppercase tracking-[0.5em] mt-1 whitespace-nowrap">DASHBOARD 2.0</p>
+          <div className="hidden sm:block">
+            <h1 className="text-xs lg:text-xl font-black tracking-tightest uppercase italic text-slate-900 leading-none">Daily <span className="text-sky-400">Cmt</span></h1>
+            <p className="text-[5px] lg:text-[8px] font-black text-slate-400 uppercase tracking-[0.5em] mt-1">DASHBOARD 2.0</p>
           </div>
         </div>
 
-        <div className="flex justify-center transform scale-75 sm:scale-85 md:scale-90 xl:scale-100">
+        <div className="flex justify-center transform scale-75 lg:scale-100">
           <LiveClock isCompact />
         </div>
 
-        <div className="flex items-center justify-end gap-2 xl:gap-4">
-           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-3 xl:px-6 py-2 xl:py-3 bg-indigo-600 text-white font-black text-[8px] xl:text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100 active:scale-95 flex items-center gap-2">
-             <Plus className="w-[14px] h-[14px] xl:w-[16px] xl:h-[16px]" strokeWidth={3} />
-             <span>NEW CMT</span>
+        <div className="flex items-center justify-end gap-1.5 lg:gap-4">
+           <button onClick={handleCapture} disabled={isCapturing} className="w-8 h-8 lg:w-11 lg:h-11 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
+             {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} className="lg:w-5 lg:h-5" />}
            </button>
-           <button onClick={() => setIsSearchOpen(true)} className="w-9 h-9 xl:w-11 xl:h-11 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all active:scale-90">
-             <Search className="w-[18px] h-[18px] xl:w-[20px] xl:h-[20px]" />
+           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-[0.2em] rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 lg:gap-2">
+             <Plus className="w-3 h-3 lg:w-4 lg:h-4" strokeWidth={3} />
+             <span>NEW</span>
+           </button>
+           <button onClick={() => setIsSearchOpen(true)} className="w-8 h-8 lg:w-11 lg:h-11 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90">
+             <Search size={16} className="lg:w-5 lg:h-5" />
            </button>
         </div>
       </header>
 
-      <main className="flex-1 p-4 xl:p-10 overflow-hidden min-h-0">
+      <main className="flex-1 p-3 lg:p-10 overflow-hidden min-h-0">
         {activeTab === Tab.TASKS ? (
-          /* FIXED DUAL-COLUMN LAYOUT (Always Side-by-Side) */
-          <div className="h-full w-full flex flex-row gap-5 xl:gap-10 min-h-0">
-            {/* Left: Priority Monitor (42%) */}
-            <div className="w-[42%] h-full flex flex-col min-h-0">
-              <div className="flex items-center gap-2 xl:gap-3 mb-4 px-2 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_15px_rgba(16,185,129,0.7)]" />
-                <h2 className="text-[8px] xl:text-[11px] font-black uppercase tracking-[0.5em] text-slate-900">Priority Monitor</h2>
+          /* RESPONSIVE LAYOUT - Column on Mobile, Row on Desktop */
+          <div className="h-full w-full flex flex-col lg:flex-row gap-4 lg:gap-10 min-h-0 overflow-y-auto lg:overflow-hidden custom-scrollbar">
+            {/* Priority Monitor - Full width on Mobile, 42% on Desktop */}
+            <div className="w-full lg:w-[42%] flex flex-col min-h-0 shrink-0 lg:shrink">
+              <div className="flex items-center gap-2 mb-3 lg:mb-4 px-2">
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
+                <h2 className="text-[7px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-900">Priority Monitor</h2>
               </div>
               
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 lg:min-h-0">
                 {activeTask ? (
                   <TaskCard 
                     task={activeTask} 
@@ -200,29 +225,29 @@ const App: React.FC = () => {
                     isTVFeatured={true}
                   />
                 ) : (
-                  <div className="h-full bg-white rounded-[3rem] border border-slate-100 flex flex-col items-center justify-center p-10 text-center shadow-sm">
-                    <Calendar className="text-slate-100 mb-6 w-[60px] h-[60px] xl:w-[80px] xl:h-[80px]" />
-                    <h3 className="text-xl xl:text-3xl font-black text-slate-200 uppercase tracking-tighter italic">System Idle</h3>
-                    <p className="text-[9px] xl:text-[11px] text-slate-400 font-bold uppercase tracking-[0.5em] mt-3">Ready for broadcast</p>
+                  <div className="h-48 lg:h-full bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-10 text-center shadow-sm">
+                    <Calendar className="text-slate-100 mb-2 lg:mb-6 w-10 h-10 lg:w-20 lg:h-20" />
+                    <h3 className="text-sm lg:text-3xl font-black text-slate-200 uppercase italic">System Idle</h3>
+                    <p className="text-[7px] lg:text-[11px] text-slate-400 font-bold uppercase tracking-[0.3em] lg:tracking-[0.5em] mt-2">Ready for broadcast</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Right: Daily Timeline (58%) */}
-            <div className="flex-1 h-full flex flex-col min-h-0">
-               <div className="flex items-center justify-between mb-4 px-2 shrink-0">
-                 <h2 className="text-[8px] xl:text-[11px] font-black uppercase tracking-[0.5em] text-slate-400">Daily Cmt Timeline</h2>
-                 <div className="bg-white border border-slate-100 px-3 xl:px-5 py-1.5 rounded-xl shadow-xs">
-                    <span className="text-[7px] xl:text-[9px] font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions Synchronized</span>
+            {/* Daily Timeline - Full width on Mobile, 58% on Desktop */}
+            <div className="flex-1 flex flex-col min-h-0 mt-2 lg:mt-0">
+               <div className="flex items-center justify-between mb-3 lg:mb-4 px-2 shrink-0">
+                 <h2 className="text-[7px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-400">Daily Timeline</h2>
+                 <div className="bg-white border border-slate-100 px-2 lg:px-5 py-1 rounded-lg lg:rounded-xl shadow-xs">
+                    <span className="text-[6px] lg:text-[9px] font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
                  </div>
                </div>
 
-               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 xl:pr-4">
-                  <div className="flex flex-col gap-3 xl:gap-4 h-auto min-h-0 pb-20">
+               <div className="flex-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:pr-4">
+                  <div className="flex flex-col gap-2.5 lg:gap-4 h-auto min-h-0 pb-10">
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
-                        <div key={task.id} className="min-h-[100px] xl:min-h-0">
+                        <div key={task.id} className="min-h-[80px] lg:min-h-0">
                           <TaskCard 
                             task={task} 
                             status={task.status} 
@@ -235,9 +260,9 @@ const App: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="h-64 flex flex-col items-center justify-center bg-white rounded-[3rem] border border-slate-50 text-slate-100">
-                         <Calendar className="mb-4 opacity-10 w-[60px] h-[60px]" />
-                         <span className="italic font-black uppercase tracking-[0.4em] text-xs xl:text-xl">Timeline Vacant</span>
+                      <div className="py-12 lg:py-24 flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-50 text-slate-100">
+                         <Calendar className="mb-4 opacity-10 w-10 h-10 lg:w-16 lg:h-16" />
+                         <span className="italic font-black uppercase tracking-[0.3em] text-[10px] lg:text-xl">No Records</span>
                       </div>
                     )}
                   </div>
@@ -245,7 +270,7 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : activeTab === Tab.WELCOME ? (
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 xl:px-10 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto px-2 lg:px-10 custom-scrollbar">
             <WelcomeTab 
               tasks={welcomeTasks} 
               onAdd={async (wt) => await storageService.saveWelcomeTask(wt)} 
@@ -255,34 +280,34 @@ const App: React.FC = () => {
             />
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto w-full h-full flex items-center justify-center px-6">
-            <div className="bg-white p-10 xl:p-16 rounded-[3rem] xl:rounded-[4rem] shadow-2xl border border-slate-50 w-full text-center">
-              <div className="flex flex-col items-center gap-6 mb-12">
-                 <div className="w-16 h-16 xl:w-20 xl:h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center shadow-inner">
-                    <AlertCircle className="w-[32px] h-[32px] xl:w-[40px] xl:h-[40px]" />
+          <div className="max-w-4xl mx-auto w-full h-full flex items-center justify-center px-4">
+            <div className="bg-white p-8 lg:p-16 rounded-[2rem] lg:rounded-[4rem] shadow-2xl border border-slate-50 w-full text-center">
+              <div className="flex flex-col items-center gap-4 lg:gap-6 mb-8 lg:mb-12">
+                 <div className="w-12 h-12 lg:w-20 lg:h-20 bg-rose-50 text-rose-600 rounded-2xl lg:rounded-3xl flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 lg:w-10 lg:h-10" />
                  </div>
-                 <h3 className="text-base xl:text-2xl font-black text-rose-600 uppercase tracking-[0.5em]">Urgent Signal Broadcast</h3>
+                 <h3 className="text-sm lg:text-2xl font-black text-rose-600 uppercase tracking-[0.3em] lg:tracking-[0.5em]">Urgent Broadcast</h3>
               </div>
-              <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-[2rem] px-10 py-8 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-2xl xl:text-3xl text-center leading-relaxed" placeholder="Broadcast content goes here..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
-              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-10 bg-rose-600 text-white font-black uppercase tracking-[0.4em] py-6 xl:py-8 rounded-[2.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95">Push Signal Now</button>
+              <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl lg:rounded-[2rem] px-6 lg:px-10 py-4 lg:py-8 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-lg lg:text-3xl text-center leading-relaxed" placeholder="Content..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
+              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-6 lg:mt-10 bg-rose-600 text-white font-black uppercase tracking-[0.3em] lg:tracking-[0.4em] py-4 lg:py-8 rounded-xl lg:rounded-[2.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95">Push Signal</button>
             </div>
           </div>
         )}
       </main>
 
-      {/* FOOTER - Unified bottom navigation */}
-      <footer className="px-10 xl:px-20 py-4 xl:py-8 bg-white border-t border-slate-100 flex justify-center gap-12 xl:gap-32 shrink-0">
-        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex items-center gap-3 transition-all group ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300 hover:text-slate-500'}`}>
-          <LayoutDashboard className="w-[22px] h-[22px] xl:w-[26px] xl:h-[26px]" />
-          <span className="text-[8px] xl:text-[11px] font-black uppercase tracking-[0.4em]">Dashboard</span>
+      {/* FOOTER - Scaled for Mobile */}
+      <footer className="px-4 lg:px-20 py-3 lg:py-8 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-4 lg:gap-32 shrink-0">
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
+          <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6" />
+          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Dash</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex items-center gap-3 transition-all group ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300 hover:text-slate-500'}`}>
-          <UserPlus className="w-[22px] h-[22px] xl:w-[26px] xl:h-[26px]" />
-          <span className="text-[8px] xl:text-[11px] font-black uppercase tracking-[0.4em]">Reception</span>
+        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
+          <UserPlus className="w-5 h-5 lg:w-6 lg:h-6" />
+          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Greet</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex items-center gap-3 transition-all group ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300 hover:text-rose-400'}`}>
-          <AlertCircle className="w-[22px] h-[22px] xl:w-[26px] xl:h-[26px]" />
-          <span className="text-[8px] xl:text-[11px] font-black uppercase tracking-[0.4em]">Broadcast</span>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}>
+          <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6" />
+          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Alert</span>
         </button>
       </footer>
 
@@ -296,19 +321,19 @@ const App: React.FC = () => {
       )}
       
       {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col p-8 xl:p-20 animate-in slide-in-from-top duration-500">
-          <div className="flex justify-between items-center mb-10 max-w-7xl mx-auto w-full">
-            <h2 className="text-2xl xl:text-5xl font-black text-slate-900 tracking-tightest italic uppercase">Database Archive</h2>
-            <button onClick={() => setIsSearchOpen(false)} className="p-4 xl:p-6 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all active:scale-90"><X className="w-[30px] h-[30px] xl:w-[36px] xl:h-[36px]" /></button>
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col p-6 lg:p-20 animate-in slide-in-from-top duration-500">
+          <div className="flex justify-between items-center mb-6 lg:mb-10 w-full max-w-7xl mx-auto">
+            <h2 className="text-xl lg:text-5xl font-black text-slate-900 italic uppercase">Archive</h2>
+            <button onClick={() => setIsSearchOpen(false)} className="p-3 lg:p-6 bg-slate-100 rounded-xl lg:rounded-2xl active:scale-90 transition-all"><X className="w-5 h-5 lg:w-9 lg:h-9" /></button>
           </div>
           <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
-            <input type="text" placeholder="Scan records..." className="w-full bg-slate-50 border-[3px] border-slate-100 rounded-[2rem] px-10 py-8 xl:py-10 text-2xl xl:text-4xl font-black outline-none focus:border-indigo-600 transition-all mb-10 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
-            <div className="flex-1 overflow-y-auto pr-6 flex flex-col gap-6 content-start pb-20 custom-scrollbar">
+            <input type="text" placeholder="Search..." className="w-full bg-slate-50 border-2 lg:border-[3px] border-slate-100 rounded-xl lg:rounded-[2rem] px-6 lg:px-10 py-4 lg:py-10 text-lg lg:text-4xl font-black outline-none focus:border-indigo-600 transition-all mb-6 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+            <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 pb-20 custom-scrollbar">
               {searchResults.length > 0 ? (
                 searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} /></div>)
               ) : searchQuery && (
-                <div className="col-span-full py-20 text-center">
-                   <p className="text-xl xl:text-3xl font-black text-slate-200 uppercase tracking-[0.5em] italic">No Matches Found</p>
+                <div className="col-span-full py-10 text-center">
+                   <p className="text-lg lg:text-3xl font-black text-slate-200 uppercase tracking-widest">No Matches</p>
                 </div>
               )}
             </div>
@@ -317,7 +342,7 @@ const App: React.FC = () => {
       )}
       
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
       `}</style>
