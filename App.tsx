@@ -81,16 +81,47 @@ const App: React.FC = () => {
         scale: 2,
         backgroundColor: '#FBFBFD',
         logging: false,
+        onclone: (clonedDoc) => {
+          // Hide elements that shouldn't be in the screenshot
+          const elementsToHide = clonedDoc.querySelectorAll('.no-capture');
+          elementsToHide.forEach(el => (el as HTMLElement).style.display = 'none');
+        }
       });
-      const link = document.createElement('a');
-      link.download = `Dashboard_${getTodayString()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `Daily_Cmt_${getTodayString()}.png`, { type: 'image/png' });
+
+        // Use Web Share API if available (Mobile support for WhatsApp)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Daily Cmt Dashboard',
+              text: `Live schedule for ${getTodayString()}`,
+            });
+          } catch (shareErr) {
+            console.log("Sharing cancelled or failed, falling back to download.");
+            downloadCanvas(canvas);
+          }
+        } else {
+          // Fallback to direct download for desktop
+          downloadCanvas(canvas);
+        }
+      }, 'image/png');
+
     } catch (err) {
       console.error("Capture failed:", err);
     } finally {
       setIsCapturing(false);
     }
+  };
+
+  const downloadCanvas = (canvas: HTMLCanvasElement) => {
+    const link = document.createElement('a');
+    link.download = `Daily_Cmt_${getTodayString()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
@@ -175,7 +206,7 @@ const App: React.FC = () => {
       <WelcomeOverlay task={activeWelcome} onStop={() => storageService.setWelcomeActive('', false)} />
       
       {/* HEADER - Responsive */}
-      <header className="px-4 lg:px-12 py-3 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1.2fr_2fr_1.2fr] items-center border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
+      <header className="px-4 lg:px-12 py-2 lg:py-3 grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1.2fr_2fr_1.2fr] items-center border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-40 shrink-0">
         <div className="flex items-center gap-2 lg:gap-4">
           <div className="w-8 h-8 lg:w-11 lg:h-11 bg-slate-900 rounded-lg lg:rounded-xl flex items-center justify-center shadow-lg">
             <Activity className="text-sky-400 w-4 h-4 lg:w-5 lg:h-5" />
@@ -186,12 +217,12 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-center transform scale-75 lg:scale-100">
+        <div className="flex justify-center transform scale-[0.65] lg:scale-100">
           <LiveClock isCompact />
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 lg:gap-4">
-           <button onClick={handleCapture} disabled={isCapturing} className="w-8 h-8 lg:w-11 lg:h-11 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
+        <div className="flex items-center justify-end gap-1.5 lg:gap-4 no-capture">
+           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share to WhatsApp" className="w-8 h-8 lg:w-11 lg:h-11 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50">
              {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} className="lg:w-5 lg:h-5" />}
            </button>
            <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3 bg-indigo-600 text-white font-black text-[7px] lg:text-[10px] uppercase tracking-[0.2em] rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 lg:gap-2">
@@ -210,9 +241,9 @@ const App: React.FC = () => {
           <div className="h-full w-full flex flex-col lg:flex-row gap-4 lg:gap-10 min-h-0 overflow-y-auto lg:overflow-hidden custom-scrollbar">
             {/* Priority Monitor - Full width on Mobile, 42% on Desktop */}
             <div className="w-full lg:w-[42%] flex flex-col min-h-0 shrink-0 lg:shrink">
-              <div className="flex items-center gap-2 mb-3 lg:mb-4 px-2">
-                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
-                <h2 className="text-[7px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-900">Priority Monitor</h2>
+              <div className="flex items-center gap-2 mb-2 lg:mb-4 px-2">
+                <div className="w-1.5 h-1.5 lg:w-2.5 lg:h-2.5 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_10px_rgba(16,185,129,0.7)]" />
+                <h2 className="text-[6px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-900">Priority Monitor</h2>
               </div>
               
               <div className="flex-1 lg:min-h-0">
@@ -225,10 +256,10 @@ const App: React.FC = () => {
                     isTVFeatured={true}
                   />
                 ) : (
-                  <div className="h-48 lg:h-full bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-10 text-center shadow-sm">
-                    <Calendar className="text-slate-100 mb-2 lg:mb-6 w-10 h-10 lg:w-20 lg:h-20" />
-                    <h3 className="text-sm lg:text-3xl font-black text-slate-200 uppercase italic">System Idle</h3>
-                    <p className="text-[7px] lg:text-[11px] text-slate-400 font-bold uppercase tracking-[0.3em] lg:tracking-[0.5em] mt-2">Ready for broadcast</p>
+                  <div className="h-40 lg:h-full bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-10 text-center shadow-sm">
+                    <Calendar className="text-slate-100 mb-2 lg:mb-6 w-8 h-8 lg:w-20 lg:h-20" />
+                    <h3 className="text-xs lg:text-3xl font-black text-slate-200 uppercase italic">System Idle</h3>
+                    <p className="text-[6px] lg:text-[11px] text-slate-400 font-bold uppercase tracking-[0.3em] lg:tracking-[0.5em] mt-2">Ready for broadcast</p>
                   </div>
                 )}
               </div>
@@ -236,18 +267,18 @@ const App: React.FC = () => {
 
             {/* Daily Timeline - Full width on Mobile, 58% on Desktop */}
             <div className="flex-1 flex flex-col min-h-0 mt-2 lg:mt-0">
-               <div className="flex items-center justify-between mb-3 lg:mb-4 px-2 shrink-0">
-                 <h2 className="text-[7px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-400">Daily Timeline</h2>
-                 <div className="bg-white border border-slate-100 px-2 lg:px-5 py-1 rounded-lg lg:rounded-xl shadow-xs">
-                    <span className="text-[6px] lg:text-[9px] font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
+               <div className="flex items-center justify-between mb-2 lg:mb-4 px-2 shrink-0">
+                 <h2 className="text-[6px] lg:text-[11px] font-black uppercase tracking-[0.4em] lg:tracking-[0.5em] text-slate-400">Daily Timeline</h2>
+                 <div className="bg-white border border-slate-100 px-2 lg:px-5 py-0.5 lg:py-1 rounded-lg lg:rounded-xl shadow-xs">
+                    <span className="text-[5px] lg:text-[9px] font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
                  </div>
                </div>
 
                <div className="flex-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:pr-4">
-                  <div className="flex flex-col gap-2.5 lg:gap-4 h-auto min-h-0 pb-10">
+                  <div className="flex flex-col gap-2 lg:gap-4 h-auto min-h-0 pb-10">
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
-                        <div key={task.id} className="min-h-[80px] lg:min-h-0">
+                        <div key={task.id} className="min-h-max lg:min-h-0">
                           <TaskCard 
                             task={task} 
                             status={task.status} 
@@ -260,7 +291,7 @@ const App: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="py-12 lg:py-24 flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-50 text-slate-100">
+                      <div className="py-10 lg:py-24 flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[3rem] border border-slate-50 text-slate-100">
                          <Calendar className="mb-4 opacity-10 w-10 h-10 lg:w-16 lg:h-16" />
                          <span className="italic font-black uppercase tracking-[0.3em] text-[10px] lg:text-xl">No Records</span>
                       </div>
@@ -270,7 +301,7 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : activeTab === Tab.WELCOME ? (
-          <div className="flex-1 min-h-0 overflow-y-auto px-2 lg:px-10 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-10 custom-scrollbar">
             <WelcomeTab 
               tasks={welcomeTasks} 
               onAdd={async (wt) => await storageService.saveWelcomeTask(wt)} 
@@ -281,8 +312,8 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="max-w-4xl mx-auto w-full h-full flex items-center justify-center px-4">
-            <div className="bg-white p-8 lg:p-16 rounded-[2rem] lg:rounded-[4rem] shadow-2xl border border-slate-50 w-full text-center">
-              <div className="flex flex-col items-center gap-4 lg:gap-6 mb-8 lg:mb-12">
+            <div className="bg-white p-6 lg:p-16 rounded-[2rem] lg:rounded-[4rem] shadow-2xl border border-slate-50 w-full text-center">
+              <div className="flex flex-col items-center gap-4 lg:gap-6 mb-6 lg:mb-12">
                  <div className="w-12 h-12 lg:w-20 lg:h-20 bg-rose-50 text-rose-600 rounded-2xl lg:rounded-3xl flex items-center justify-center">
                     <AlertCircle className="w-6 h-6 lg:w-10 lg:h-10" />
                  </div>
@@ -296,18 +327,18 @@ const App: React.FC = () => {
       </main>
 
       {/* FOOTER - Scaled for Mobile */}
-      <footer className="px-4 lg:px-20 py-3 lg:py-8 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-4 lg:gap-32 shrink-0">
-        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <LayoutDashboard className="w-5 h-5 lg:w-6 lg:h-6" />
-          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Dash</span>
+      <footer className="px-4 lg:px-20 py-2 lg:py-8 bg-white border-t border-slate-100 flex justify-around lg:justify-center gap-4 lg:gap-32 shrink-0 no-capture">
+        <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-3 transition-all ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
+          <LayoutDashboard className="w-4 h-4 lg:w-6 lg:h-6" />
+          <span className="text-[5px] lg:text-[11px] font-black uppercase tracking-widest">Dash</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
-          <UserPlus className="w-5 h-5 lg:w-6 lg:h-6" />
-          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Greet</span>
+        <button onClick={() => setActiveTab(Tab.WELCOME)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-3 transition-all ${activeTab === Tab.WELCOME ? 'text-indigo-600 scale-110' : 'text-slate-300'}`}>
+          <UserPlus className="w-4 h-4 lg:w-6 lg:h-6" />
+          <span className="text-[5px] lg:text-[11px] font-black uppercase tracking-widest">Greet</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col lg:flex-row items-center gap-1 lg:gap-3 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}>
-          <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6" />
-          <span className="text-[6px] lg:text-[11px] font-black uppercase tracking-widest">Alert</span>
+        <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col lg:flex-row items-center gap-0.5 lg:gap-3 transition-all ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-300'}`}>
+          <AlertCircle className="w-4 h-4 lg:w-6 lg:h-6" />
+          <span className="text-[5px] lg:text-[11px] font-black uppercase tracking-widest">Alert</span>
         </button>
       </footer>
 
