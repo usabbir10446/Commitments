@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { UserRole } from '../types';
-import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy, Check } from 'lucide-react';
 
 const AuthModal: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,16 +10,25 @@ const AuthModal: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [currentHostname, setCurrentHostname] = useState('');
+
+  useEffect(() => {
+    // Capture hostname on mount to ensure it's available for the error message
+    setCurrentHostname(window.location.hostname || 'localhost');
+  }, []);
 
   const formatErrorMessage = (err: any) => {
-    if (err.code === 'auth/unauthorized-domain') {
-      const hostname = window.location.hostname || 'this domain';
-      return `SECURITY BLOCK: The domain "${hostname}" is not authorized. \n\nFIX: Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${hostname}".`;
+    const errorCode = err.code || '';
+    const errorMsg = err.message || '';
+    
+    if (errorCode === 'auth/unauthorized-domain' || errorMsg.includes('unauthorized-domain')) {
+      return `SECURITY BLOCK: Unauthorized Domain Detected.\n\nYour Firebase project "cmtbipsot" does not recognize this web address yet.`;
     }
-    if (err.message?.includes('No acct found')) {
+    if (errorMsg.includes('No acct found')) {
       return "No acct found. You need to create a new acct sir.";
     }
-    return err.message || 'Authentication failed';
+    return errorMsg || 'Authentication failed';
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -53,6 +62,14 @@ const AuthModal: React.FC = () => {
     }
   };
 
+  const copyHostname = () => {
+    navigator.clipboard.writeText(currentHostname);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const isDomainError = error.includes('SECURITY BLOCK');
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900 p-4 sm:p-6 overflow-y-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(79,70,229,0.15),transparent)] pointer-events-none" />
@@ -69,25 +86,43 @@ const AuthModal: React.FC = () => {
         </div>
 
         {error && (
-          <div className={`mb-6 p-4 rounded-2xl flex flex-col gap-2 animate-in slide-in-from-top-2 border shadow-sm ${
-            error.includes('SECURITY BLOCK') ? 'bg-rose-50 border-rose-200 text-rose-700' : 
+          <div className={`mb-6 p-5 rounded-[1.5rem] flex flex-col gap-3 animate-in slide-in-from-top-2 border shadow-sm ${
+            isDomainError ? 'bg-rose-50 border-rose-200 text-rose-700' : 
             error.includes('No acct found') ? 'bg-amber-50 border-amber-200 text-amber-700' : 
             'bg-slate-50 border-slate-200 text-slate-600'
           }`}>
             <div className="flex items-start gap-3">
-              <AlertCircle size={18} className="shrink-0 mt-0.5" />
-              <span className="text-[11px] font-black leading-relaxed whitespace-pre-wrap">{error}</span>
+              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-black leading-tight uppercase tracking-wide">
+                  {isDomainError ? "Action Required" : "Notification"}
+                </span>
+                <span className="text-[11px] font-bold leading-relaxed whitespace-pre-wrap">{error}</span>
+              </div>
             </div>
-            {error.includes('SECURITY BLOCK') && (
-              <div className="mt-2 p-2 bg-white/50 rounded-lg border border-rose-100 flex items-center justify-between">
-                <code className="text-[10px] font-mono font-bold truncate">{window.location.hostname}</code>
-                <button 
-                  onClick={() => navigator.clipboard.writeText(window.location.hostname)}
-                  className="p-1 hover:bg-rose-100 rounded transition-colors"
-                  title="Copy hostname"
-                >
-                  <Copy size={12} />
-                </button>
+
+            {isDomainError && (
+              <div className="mt-2 space-y-3">
+                <div className="p-3 bg-white border border-rose-200 rounded-xl shadow-inner">
+                  <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-2">1. Copy this domain:</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="text-[11px] font-mono font-black text-slate-800 break-all bg-slate-100 px-2 py-1 rounded">
+                      {currentHostname}
+                    </code>
+                    <button 
+                      onClick={copyHostname}
+                      className="shrink-0 p-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-all active:scale-90"
+                      title="Copy to clipboard"
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3 bg-rose-100/50 rounded-xl">
+                  <p className="text-[9px] font-bold text-rose-800 leading-tight">
+                    2. Go to <span className="font-black">Firebase Console</span> &rarr; <span className="font-black">Auth</span> &rarr; <span className="font-black">Settings</span> &rarr; <span className="font-black">Authorized Domains</span> and add the copied address.
+                  </p>
+                </div>
               </div>
             )}
           </div>

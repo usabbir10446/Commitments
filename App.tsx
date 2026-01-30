@@ -230,7 +230,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#FBFBFD]">
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
-      <WelcomeOverlay task={activeWelcome} onStop={() => isAdmin && storageService.setWelcomeActive('', false)} />
+      <WelcomeOverlay task={activeWelcome} onStop={() => { if (isAdmin) storageService.setWelcomeActive('', false); }} />
       
       {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
       <div className="fixed left-[-9999px] top-0">
@@ -315,7 +315,7 @@ const App: React.FC = () => {
               </div>
               <div className="flex-1 min-h-0">
                 {activeTask ? (
-                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => isAdmin && { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTVFeatured={true} isAdmin={isAdmin} />
+                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => { if (isAdmin) { setEditingTask(t); setIsModalOpen(true); } }} onDelete={handleDeleteTask} isTVFeatured={true} isAdmin={isAdmin} />
                 ) : (
                   <div className="h-full bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-14 text-center shadow-sm">
                     <Calendar className="text-slate-100 mb-4 lg:mb-10 w-12 h-12 lg:w-32 lg:h-32" />
@@ -333,7 +333,7 @@ const App: React.FC = () => {
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
                         <div key={task.id} className="min-h-[70px] lg:min-h-0">
-                          <TaskCard task={task} status={task.status} onEdit={(t) => isAdmin && { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isAdmin={isAdmin} fontSizeClass={dynamicFontSize} />
+                          <TaskCard task={task} status={task.status} onEdit={(t) => { if (isAdmin) { setEditingTask(t); setIsModalOpen(true); } }} onDelete={handleDeleteTask} isAdmin={isAdmin} fontSizeClass={dynamicFontSize} />
                         </div>
                       ))
                     ) : <div className="h-full flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-50 text-slate-100"><p className="italic font-black uppercase tracking-[0.3em] text-xs lg:text-3xl">No Records</p></div>}
@@ -370,7 +370,7 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === Tab.WELCOME ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar">
-            <WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => isAdmin ? await storageService.saveWelcomeTask(wt) : false} onStart={(id) => isAdmin && storageService.setWelcomeActive(id, true)} onStop={() => isAdmin && storageService.setWelcomeActive('', false)} onDelete={(id) => isAdmin && storageService.deleteWelcomeTask(id)} isAdmin={isAdmin} />
+            <WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => isAdmin ? await storageService.saveWelcomeTask(wt) : false} onStart={(id) => { if (isAdmin) storageService.setWelcomeActive(id, true); }} onStop={() => { if (isAdmin) storageService.setWelcomeActive('', false); }} onDelete={(id) => { if (isAdmin) storageService.deleteWelcomeTask(id); }} isAdmin={isAdmin} />
           </div>
         ) : (
           <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center p-4">
@@ -422,7 +422,11 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
             <input type="text" placeholder="Search..." className="w-full bg-slate-50 border-2 lg:border-[4px] border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-4 lg:py-14 text-lg lg:text-6xl font-black outline-none focus:border-indigo-600 transition-all mb-6 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 lg:gap-8 pb-10 custom-scrollbar">
-              {searchResults.length > 0 ? searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => isAdmin && { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} isAdmin={isAdmin} /></div>) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
+              {searchResults.length > 0 ? searchResults.map(t => (
+                <div key={t.id} className="min-h-max">
+                  <TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { if (isAdmin) { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); } }} onDelete={handleDeleteTask} isAdmin={isAdmin} />
+                </div>
+              )) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
             </div>
           </div>
         </div>
