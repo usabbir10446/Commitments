@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask, UserRole, UserProfile } from './types';
 import { storageService } from './services/storageService';
 import { authService } from './services/authService';
@@ -219,6 +219,27 @@ const App: React.FC = () => {
     return tasks.filter(t => t.title.toLowerCase().includes(q) || t.venue.toLowerCase().includes(q));
   }, [tasks, searchQuery]);
 
+  // Handlers to avoid complex inline arrow functions in JSX that cause build errors
+  const handleEditTask = useCallback((task: Task) => {
+    if (isAdmin) {
+      setEditingTask(task);
+      setIsModalOpen(true);
+      if (isSearchOpen) setIsSearchOpen(false);
+    }
+  }, [isAdmin, isSearchOpen]);
+
+  const handleStartWelcome = useCallback((id: string) => {
+    if (isAdmin) storageService.setWelcomeActive(id, true);
+  }, [isAdmin]);
+
+  const handleStopWelcome = useCallback(() => {
+    if (isAdmin) storageService.setWelcomeActive('', false);
+  }, [isAdmin]);
+
+  const handleDeleteWelcome = useCallback((id: string) => {
+    if (isAdmin) storageService.deleteWelcomeTask(id);
+  }, [isAdmin]);
+
   if (!authInitialized) return (
     <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
       <Loader2 className="animate-spin text-indigo-600" size={48} />
@@ -230,7 +251,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#FBFBFD]">
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
-      <WelcomeOverlay task={activeWelcome} onStop={() => { if (isAdmin) storageService.setWelcomeActive('', false); }} />
+      <WelcomeOverlay task={activeWelcome} onStop={handleStopWelcome} />
       
       {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
       <div className="fixed left-[-9999px] top-0">
@@ -315,7 +336,14 @@ const App: React.FC = () => {
               </div>
               <div className="flex-1 min-h-0">
                 {activeTask ? (
-                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => { if (isAdmin) { setEditingTask(t); setIsModalOpen(true); } }} onDelete={handleDeleteTask} isTVFeatured={true} isAdmin={isAdmin} />
+                  <TaskCard 
+                    task={activeTask} 
+                    status={TaskStatus.ACTIVE} 
+                    onEdit={handleEditTask} 
+                    onDelete={handleDeleteTask} 
+                    isTVFeatured={true} 
+                    isAdmin={isAdmin} 
+                  />
                 ) : (
                   <div className="h-full bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-14 text-center shadow-sm">
                     <Calendar className="text-slate-100 mb-4 lg:mb-10 w-12 h-12 lg:w-32 lg:h-32" />
@@ -333,7 +361,14 @@ const App: React.FC = () => {
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
                         <div key={task.id} className="min-h-[70px] lg:min-h-0">
-                          <TaskCard task={task} status={task.status} onEdit={(t) => { if (isAdmin) { setEditingTask(t); setIsModalOpen(true); } }} onDelete={handleDeleteTask} isAdmin={isAdmin} fontSizeClass={dynamicFontSize} />
+                          <TaskCard 
+                            task={task} 
+                            status={task.status} 
+                            onEdit={handleEditTask} 
+                            onDelete={handleDeleteTask} 
+                            isAdmin={isAdmin} 
+                            fontSizeClass={dynamicFontSize} 
+                          />
                         </div>
                       ))
                     ) : <div className="h-full flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-50 text-slate-100"><p className="italic font-black uppercase tracking-[0.3em] text-xs lg:text-3xl">No Records</p></div>}
@@ -360,7 +395,7 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       {isAdmin && (
-                        <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-2 lg:p-6 bg-white border border-slate-100 rounded-lg lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all shrink-0 self-end lg:self-center"><ChevronRight size={18} className="lg:w-8 lg:h-8" /></button>
+                        <button onClick={() => handleEditTask(task)} className="p-2 lg:p-6 bg-white border border-slate-100 rounded-lg lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all shrink-0 self-end lg:self-center"><ChevronRight size={18} className="lg:w-8 lg:h-8" /></button>
                       )}
                     </div>
                   ))}
@@ -370,7 +405,14 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === Tab.WELCOME ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar">
-            <WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => isAdmin ? await storageService.saveWelcomeTask(wt) : false} onStart={(id) => { if (isAdmin) storageService.setWelcomeActive(id, true); }} onStop={() => { if (isAdmin) storageService.setWelcomeActive('', false); }} onDelete={(id) => { if (isAdmin) storageService.deleteWelcomeTask(id); }} isAdmin={isAdmin} />
+            <WelcomeTab 
+              tasks={welcomeTasks} 
+              onAdd={async (wt) => isAdmin ? await storageService.saveWelcomeTask(wt) : false} 
+              onStart={handleStartWelcome} 
+              onStop={handleStopWelcome} 
+              onDelete={handleDeleteWelcome} 
+              isAdmin={isAdmin} 
+            />
           </div>
         ) : (
           <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center p-4">
@@ -424,7 +466,13 @@ const App: React.FC = () => {
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 lg:gap-8 pb-10 custom-scrollbar">
               {searchResults.length > 0 ? searchResults.map(t => (
                 <div key={t.id} className="min-h-max">
-                  <TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { if (isAdmin) { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); } }} onDelete={handleDeleteTask} isAdmin={isAdmin} />
+                  <TaskCard 
+                    task={t} 
+                    status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} 
+                    onEdit={handleEditTask} 
+                    onDelete={handleDeleteTask} 
+                    isAdmin={isAdmin} 
+                  />
                 </div>
               )) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
             </div>
