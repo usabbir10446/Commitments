@@ -6,7 +6,7 @@ import { authService } from './services/authService';
 import { initializeDatabase } from './services/setupData';
 import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, getTomorrowString, formatFriendlyDate, formatBanglaDate } from './utils/time';
 import { db } from './services/firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import LiveClock from './components/LiveClock';
 import TaskCard from './components/TaskCard';
 import TaskModal from './components/TaskModal';
@@ -94,28 +94,37 @@ const App: React.FC = () => {
     if (!reportRef.current) return;
     setIsCapturing(true);
     try {
-      await new Promise(r => setTimeout(r, 200));
+      // Ensure fonts and images are loaded
+      await new Promise(r => setTimeout(r, 500));
       const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
-        scale: 3, 
+        scale: 2, 
         backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById('hidden-report-container');
+          if (el) el.style.left = '0';
+        }
       });
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error("Canvas to Blob failed");
-      const tomorrow = getTomorrowString();
-      const file = new File([blob], `Daily_Cmt_Report_${tomorrow}.png`, { type: 'image/png' });
+      const filename = `CMT_Report_${viewDate}.png`;
+      const file = new File([blob], filename, { type: 'image/png' });
+      
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
-            title: 'Daily Cmt Report',
-            text: `Schedule for ${tomorrow}`,
+            title: 'Daily CMT Report',
+            text: `Schedule for ${viewDate}`,
           });
         } catch (shareErr: any) {
-          if (shareErr.name !== 'AbortError') downloadCanvas(canvas);
+          if (shareErr.name !== 'AbortError') downloadCanvas(canvas, filename);
         }
-      } else downloadCanvas(canvas);
+      } else {
+        downloadCanvas(canvas, filename);
+      }
     } catch (err) {
       console.error("Capture failed:", err);
     } finally {
@@ -123,9 +132,9 @@ const App: React.FC = () => {
     }
   };
 
-  const downloadCanvas = (canvas: HTMLCanvasElement) => {
+  const downloadCanvas = (canvas: HTMLCanvasElement, filename: string) => {
     const link = document.createElement('a');
-    link.download = `Daily_Cmt_Report_${getTomorrowString()}.png`;
+    link.download = filename;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -219,7 +228,6 @@ const App: React.FC = () => {
     return tasks.filter(t => t.title.toLowerCase().includes(q) || t.venue.toLowerCase().includes(q));
   }, [tasks, searchQuery]);
 
-  // Handlers to avoid complex inline arrow functions in JSX that cause build errors
   const handleEditTask = useCallback((task: Task) => {
     if (isAdmin) {
       setEditingTask(task);
@@ -253,37 +261,68 @@ const App: React.FC = () => {
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
       <WelcomeOverlay task={activeWelcome} onStop={handleStopWelcome} />
       
-      {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
-      <div className="fixed left-[-9999px] top-0">
-        <div ref={reportRef} className="w-[1200px] p-20 bg-white min-h-[1600px] flex flex-col">
-          <div className="flex justify-between items-center mb-16 border-b-4 border-slate-900 pb-10">
-            <div>
-              <h1 className="text-7xl font-black text-slate-900 uppercase italic tracking-tighter">DAILY <span className="text-sky-500">CMT</span> REPORT</h1>
-              <p className="text-2xl font-black text-slate-400 uppercase tracking-[0.5em] mt-2">Operational Schedule</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-black text-indigo-600 uppercase italic">{formatBanglaDate(new Date())}</p>
-              <p className="text-4xl font-black text-slate-900 uppercase">{formatFriendlyDate(new Date())}</p>
+      {/* HIDDEN REPORT VIEW FOR SCREENSHOT - OPTIMIZED FOR 1200px WIDTH */}
+      <div id="hidden-report-container" className="fixed left-[-9999px] top-0 pointer-events-none z-[-100]">
+        <div ref={reportRef} className="w-[1000px] p-16 bg-white flex flex-col min-h-[1400px]">
+          {/* BEAUTIFUL HEADER */}
+          <div className="text-center mb-10 pb-8 border-b-[6px] border-slate-900">
+            <h1 className="text-6xl font-black text-slate-900 uppercase italic tracking-tighter mb-4">
+              CMT of Respected Comdt
+            </h1>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-3xl font-black text-indigo-600 uppercase italic">
+                {formatBanglaDate(new Date(viewDate))}
+              </p>
+              <p className="text-4xl font-black text-slate-900 uppercase">
+                {formatFriendlyDate(new Date(viewDate))}
+              </p>
             </div>
           </div>
-          <div className="flex-1 space-y-10">
-            {tasks.filter(t => t.date === getTodayString()).length > 0 ? (
-              tasks.filter(t => t.date === getTodayString()).map(task => (
-                <div key={task.id} className="border-4 border-slate-100 p-10 rounded-[3rem] flex gap-10 items-center">
-                  <div className="w-48 text-5xl font-black text-indigo-600 italic shrink-0 border-r-4 border-slate-50">{task.timeBlock.split(' ')[0]}</div>
+
+          {/* TASK LIST SECTION */}
+          <div className="flex-1 space-y-6">
+            {homepageTasks.length > 0 ? (
+              homepageTasks.map((task) => (
+                <div key={task.id} className="flex gap-8 items-center p-8 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem]">
+                  <div className="w-32 shrink-0 text-3xl font-black text-indigo-600 italic tabular-nums text-center border-r-2 border-slate-200 pr-8">
+                    {task.timeBlock.split(' ')[0]}
+                  </div>
                   <div className="flex-1">
-                    <h3 className="text-5xl font-black text-slate-900 uppercase mb-4">{task.title}</h3>
-                    <div className="flex items-center gap-4 text-3xl font-bold text-slate-500">
-                      <MapPin size={32} />
+                    <h3 className="text-3xl font-black text-slate-900 uppercase mb-2">{task.title}</h3>
+                    <div className="flex items-center gap-3 text-xl font-bold text-slate-500">
+                      <MapPin size={24} />
                       <span className="uppercase">{task.venue}</span>
                     </div>
                   </div>
+                  {task.status === TaskStatus.ACTIVE && (
+                     <div className="px-5 py-2 bg-emerald-100 border-2 border-emerald-400 rounded-full">
+                       <span className="text-emerald-700 font-black text-xs uppercase tracking-widest">Active</span>
+                     </div>
+                  )}
                 </div>
               ))
-            ) : <p className="text-center text-4xl font-black text-slate-200 uppercase italic py-20">No Tasks Scheduled</p>}
+            ) : (
+              <div className="py-32 flex flex-col items-center justify-center opacity-20">
+                <Calendar size={120} />
+                <p className="text-5xl font-black uppercase italic mt-10">No Tasks Scheduled</p>
+              </div>
+            )}
           </div>
-          <div className="mt-20 pt-10 border-t-2 border-slate-100 text-center">
-            <p className="text-xl font-bold text-slate-400 uppercase tracking-widest">Generated by Daily Cmt Intelligence System</p>
+
+          {/* BEAUTIFUL FOOTER & SIGNATURE */}
+          <div className="mt-16 pt-10 border-t-[3px] border-slate-100 flex justify-between items-end">
+             <div className="text-left">
+                <p className="text-xs font-black text-slate-300 uppercase tracking-[0.5em]">System Verified Report</p>
+                <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Daily Cmt Intelligence • Security Protocol V2.1</p>
+             </div>
+             <div className="text-right">
+                <p className="text-2xl font-bold text-slate-900 mb-2">Kind Regards,</p>
+                <div className="flex flex-col items-end">
+                  <p className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Capt Usabbir</p>
+                  <p className="text-xl font-black text-indigo-600 uppercase italic">GSO-3 (Coord)</p>
+                  <p className="text-2xl font-black text-slate-900 uppercase tracking-widest mt-1">BIPSOT</p>
+                </div>
+             </div>
           </div>
         </div>
       </div>
