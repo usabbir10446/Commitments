@@ -25,6 +25,17 @@ export interface EmergencyMessage {
   createdAt: number;
 }
 
+export enum UserRole {
+  ADMIN = 'admin',
+  VIEWER = 'viewer'
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  role: UserRole;
+}
+
 export enum Tab {
   TASKS = 'tasks',
   UPCOMING = 'upcoming',

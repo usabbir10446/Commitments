@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask } from './types';
+import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask, UserRole, UserProfile } from './types';
 import { storageService } from './services/storageService';
+import { authService } from './services/authService';
 import { initializeDatabase } from './services/setupData';
 import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, getTomorrowString, formatFriendlyDate, formatBanglaDate } from './utils/time';
 import { db } from './services/firebase';
@@ -11,11 +13,15 @@ import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight } from 'lucide-react';
+import AuthModal from './components/AuthModal';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight, LogOut } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
+  
   const [activeTab, setActiveTab] = useState<Tab>(Tab.TASKS);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [welcomeTasks, setWelcomeTasks] = useState<WelcomeTask[]>([]);
@@ -34,7 +40,19 @@ const App: React.FC = () => {
   const [viewDate, setViewDate] = useState(getTodayString()); 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
   useEffect(() => {
+    const unsubAuth = authService.subscribeToAuth((user) => {
+      setCurrentUser(user);
+      setAuthInitialized(true);
+    });
+    return () => unsubAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    
     setIsLoading(true);
     initializeDatabase().catch(console.error);
 
@@ -70,7 +88,7 @@ const App: React.FC = () => {
       unsubWelcome();
       clearInterval(timer);
     };
-  }, []);
+  }, [currentUser]);
 
   const handleCapture = async () => {
     if (!reportRef.current) return;
@@ -113,6 +131,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
+    if (!isAdmin) return;
     const saved = await storageService.saveTask({ ...taskData, id: editingTask?.id });
     if (saved) {
       setIsModalOpen(false);
@@ -121,6 +140,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (!isAdmin) return;
     if (await storageService.deleteTask(id)) {
       setIsModalOpen(false);
       setEditingTask(null);
@@ -128,7 +148,7 @@ const App: React.FC = () => {
   };
 
   const triggerEmergency = async (text: string) => {
-    if (!text.trim()) return;
+    if (!isAdmin || !text.trim()) return;
     const result = await storageService.broadcastEmergency(text);
     if (result) setEmergencyInput('');
   };
@@ -162,26 +182,25 @@ const App: React.FC = () => {
     }));
   }, [tasks, currentMinutes, viewDate]);
 
-  const tomorrowTasks = useMemo(() => {
-    const tomorrowStr = getTomorrowString();
-    return tasks.filter(t => t.date === tomorrowStr).map(t => ({
-      ...t,
-      times: parseTimeBlock(t.timeBlock)
-    })).sort((a, b) => a.times.start - b.times.start);
-  }, [tasks]);
-
   const groupedUpcomingTasks = useMemo(() => {
     const today = getTodayString();
-    const future = tasks.filter(t => t.date > today);
-    const groups: Record<string, Task[]> = {};
-    future.forEach(t => {
+    const futureTasks = tasks.filter(t => t.date > today);
+    
+    const groups: { [key: string]: Task[] } = {};
+    futureTasks.forEach(t => {
       if (!groups[t.date]) groups[t.date] = [];
       groups[t.date].push(t);
     });
-    return Object.keys(groups).sort().map(date => ({
-      date,
-      tasks: groups[date].sort((a, b) => parseTimeBlock(a.timeBlock).start - parseTimeBlock(b.timeBlock).start)
-    }));
+
+    return Object.entries(groups)
+      .map(([date, dateTasks]) => ({
+        date,
+        tasks: dateTasks.map(t => ({
+          ...t,
+          times: parseTimeBlock(t.timeBlock)
+        })).sort((a, b) => a.times.start - b.times.start)
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }, [tasks]);
 
   const activeTask = homepageTasks.find(t => t.status === TaskStatus.ACTIVE);
@@ -200,36 +219,51 @@ const App: React.FC = () => {
     return tasks.filter(t => t.title.toLowerCase().includes(q) || t.venue.toLowerCase().includes(q));
   }, [tasks, searchQuery]);
 
+  if (!authInitialized) return (
+    <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
+      <Loader2 className="animate-spin text-indigo-600" size={48} />
+    </div>
+  );
+
+  if (!currentUser) return <AuthModal />;
+
   return (
     <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#FBFBFD]">
       <EmergencyOverlay message={activeEmergency} onClose={() => setActiveEmergency(null)} />
-      <WelcomeOverlay task={activeWelcome} onStop={() => storageService.setWelcomeActive('', false)} />
+      <WelcomeOverlay task={activeWelcome} onStop={() => isAdmin && storageService.setWelcomeActive('', false)} />
       
       {/* HIDDEN REPORT VIEW FOR SCREENSHOT */}
-      <div ref={reportRef} style={{ position: 'absolute', left: '-9999px', top: '0', width: '800px', padding: '60px', backgroundColor: '#ffffff' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '4px solid #1e293b', paddingBottom: '20px' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', marginBottom: '10px' }}>Daily Cmt of Respected Comdt</h1>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '20px', fontWeight: '800', color: '#4f46e5' }}>
-            <span>{formatBanglaDate(new Date(Date.now() + 86400000))}</span>
-            <span style={{ color: '#94a3b8' }}>|</span>
-            <span>{formatFriendlyDate(new Date(Date.now() + 86400000))}</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {tomorrowTasks.length > 0 ? tomorrowTasks.map((task, idx) => (
-            <div key={task.id} style={{ border: '2px solid #f1f5f9', borderRadius: '24px', padding: '24px', backgroundColor: '#f8fafc' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <span style={{ backgroundColor: '#4f46e5', color: '#ffffff', padding: '6px 16px', borderRadius: '12px', fontSize: '18px', fontWeight: '900' }}>{task.timeBlock}</span>
-                <span style={{ color: '#94a3b8', fontSize: '14px', fontWeight: '800' }}>#S-{idx+1}</span>
-              </div>
-              <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', textTransform: 'uppercase' }}>{task.title}</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={18} color="#6366f1" /> <span style={{ fontSize: '16px', fontWeight: '700' }}>Venue: {task.venue}</span></div>
-                {task.attended && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><UserCheck size={18} color="#6366f1" /> <span style={{ fontSize: '16px', fontWeight: '700' }}>Atnd: {task.attended}</span></div>}
-              </div>
-              {task.remarks && <div style={{ marginTop: '16px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', display: 'flex', gap: '8px' }}><FileText size={18} color="#94a3b8" /><p style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>{task.remarks}</p></div>}
+      <div className="fixed left-[-9999px] top-0">
+        <div ref={reportRef} className="w-[1200px] p-20 bg-white min-h-[1600px] flex flex-col">
+          <div className="flex justify-between items-center mb-16 border-b-4 border-slate-900 pb-10">
+            <div>
+              <h1 className="text-7xl font-black text-slate-900 uppercase italic tracking-tighter">DAILY <span className="text-sky-500">CMT</span> REPORT</h1>
+              <p className="text-2xl font-black text-slate-400 uppercase tracking-[0.5em] mt-2">Operational Schedule</p>
             </div>
-          )) : <div style={{ textAlign: 'center', padding: '100px', border: '2px dashed #e2e8f0', borderRadius: '40px' }}><p style={{ fontSize: '24px', fontWeight: '800', color: '#cbd5e1', textTransform: 'uppercase' }}>No Sessions Scheduled for Tomorrow</p></div>}
+            <div className="text-right">
+              <p className="text-3xl font-black text-indigo-600 uppercase italic">{formatBanglaDate(new Date())}</p>
+              <p className="text-4xl font-black text-slate-900 uppercase">{formatFriendlyDate(new Date())}</p>
+            </div>
+          </div>
+          <div className="flex-1 space-y-10">
+            {tasks.filter(t => t.date === getTodayString()).length > 0 ? (
+              tasks.filter(t => t.date === getTodayString()).map(task => (
+                <div key={task.id} className="border-4 border-slate-100 p-10 rounded-[3rem] flex gap-10 items-center">
+                  <div className="w-48 text-5xl font-black text-indigo-600 italic shrink-0 border-r-4 border-slate-50">{task.timeBlock.split(' ')[0]}</div>
+                  <div className="flex-1">
+                    <h3 className="text-5xl font-black text-slate-900 uppercase mb-4">{task.title}</h3>
+                    <div className="flex items-center gap-4 text-3xl font-bold text-slate-500">
+                      <MapPin size={32} />
+                      <span className="uppercase">{task.venue}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : <p className="text-center text-4xl font-black text-slate-200 uppercase italic py-20">No Tasks Scheduled</p>}
+          </div>
+          <div className="mt-20 pt-10 border-t-2 border-slate-100 text-center">
+            <p className="text-xl font-bold text-slate-400 uppercase tracking-widest">Generated by Daily Cmt Intelligence System</p>
+          </div>
         </div>
       </div>
 
@@ -241,7 +275,6 @@ const App: React.FC = () => {
           </div>
           <div className="hidden sm:block">
             <h1 className="text-xs lg:text-xl font-black tracking-tightest uppercase italic text-slate-900 leading-none">Daily <span className="text-sky-400">Cmt</span></h1>
-            <p className="text-[5px] lg:text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 whitespace-nowrap">DASHBOARD 2.0</p>
           </div>
         </div>
 
@@ -252,15 +285,22 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-0">
-           <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50 shrink-0">
-             {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} className="lg:w-6 lg:h-6" />}
-           </button>
-           <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3.5 bg-indigo-600 text-white font-black text-[8px] lg:text-[10px] uppercase tracking-wider rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 shrink-0">
-             <Plus className="w-3 h-3 lg:w-4 lg:h-4" strokeWidth={3} />
-             <span>NEW</span>
-           </button>
+           {isAdmin && (
+             <>
+               <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50 shrink-0">
+                 {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} className="lg:w-6 lg:h-6" />}
+               </button>
+               <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3.5 bg-indigo-600 text-white font-black text-[8px] lg:text-[10px] uppercase tracking-wider rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 shrink-0">
+                 <Plus className="w-3 h-3 lg:w-4 lg:h-4" strokeWidth={3} />
+                 <span>NEW</span>
+               </button>
+             </>
+           )}
            <button onClick={() => setIsSearchOpen(true)} className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 shrink-0">
              <Search size={16} className="lg:w-6 lg:h-6" />
+           </button>
+           <button onClick={() => authService.logout()} className="w-8 h-8 lg:w-12 lg:h-12 bg-rose-50 border border-rose-100 rounded-lg lg:rounded-xl flex items-center justify-center text-rose-400 hover:text-rose-600 shadow-sm transition-all active:scale-90 shrink-0" title="Logout">
+             <LogOut size={16} />
            </button>
         </div>
       </header>
@@ -270,12 +310,12 @@ const App: React.FC = () => {
           <div className="h-full w-full flex flex-col lg:flex-row gap-4 lg:gap-12 min-h-0 overflow-hidden">
             <div className="w-full lg:w-[42%] flex flex-col min-h-0 shrink-0 lg:shrink">
               <div className="flex items-center gap-2 mb-2 lg:mb-6 px-1 shrink-0">
-                <div className="w-1.5 h-1.5 lg:w-3 lg:h-3 rounded-full bg-emerald-500 animate-blink-intense shadow-[0_0_15px_rgba(16,185,129,0.7)]" />
+                <div className="w-1.5 h-1.5 lg:w-3 lg:h-3 rounded-full bg-emerald-500 animate-blink-intense" />
                 <h2 className="text-[8px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-900">Priority Monitor</h2>
               </div>
               <div className="flex-1 min-h-0">
                 {activeTask ? (
-                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTVFeatured={true} />
+                  <TaskCard task={activeTask} status={TaskStatus.ACTIVE} onEdit={(t) => isAdmin && { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTVFeatured={true} isAdmin={isAdmin} />
                 ) : (
                   <div className="h-full bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 flex flex-col items-center justify-center p-6 lg:p-14 text-center shadow-sm">
                     <Calendar className="text-slate-100 mb-4 lg:mb-10 w-12 h-12 lg:w-32 lg:h-32" />
@@ -287,15 +327,14 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col min-h-0 mt-2 lg:mt-0">
                <div className="flex items-center justify-between mb-2 lg:mb-6 px-1 shrink-0">
                  <h2 className="text-[8px] lg:text-sm font-black uppercase tracking-[0.4em] lg:tracking-[0.6em] text-slate-400">Daily Timeline</h2>
-                 <div className="bg-white border border-slate-100 px-2 lg:px-6 py-0.5 lg:py-2 rounded-lg lg:rounded-2xl shadow-xs">
-                    <span className="text-[7px] lg:text-xs font-black uppercase tracking-widest text-indigo-600">{homepageTasks.length} Sessions</span>
-                 </div>
                </div>
                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                   <div className="flex flex-col gap-2 lg:gap-3 h-full overflow-y-auto custom-scrollbar pr-1">
                     {otherTasks.length > 0 ? (
                       otherTasks.map(task => (
-                        <div key={task.id} className="min-h-[70px] lg:min-h-0"><TaskCard task={task} status={task.status} isNextUpcoming={(task as any).isNextUpcoming} onEdit={(t) => { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isTV={true} fontSizeClass={dynamicFontSize} /></div>
+                        <div key={task.id} className="min-h-[70px] lg:min-h-0">
+                          <TaskCard task={task} status={task.status} onEdit={(t) => isAdmin && { setEditingTask(t); setIsModalOpen(true); }} onDelete={handleDeleteTask} isAdmin={isAdmin} fontSizeClass={dynamicFontSize} />
+                        </div>
                       ))
                     ) : <div className="h-full flex flex-col items-center justify-center bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-50 text-slate-100"><p className="italic font-black uppercase tracking-[0.3em] text-xs lg:text-3xl">No Records</p></div>}
                   </div>
@@ -304,10 +343,6 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === Tab.UPCOMING ? (
           <div className="flex-1 flex flex-col min-h-0 space-y-4 lg:space-y-6 overflow-y-auto custom-scrollbar pr-1 lg:pr-4">
-            <div className="flex items-center gap-2 mb-2 lg:mb-10 px-1">
-              <Calendar className="text-indigo-600 w-6 h-6 lg:w-10 lg:h-10" />
-              <h2 className="text-lg lg:text-4xl font-black text-slate-900 uppercase tracking-tight italic">Upcoming Cmt</h2>
-            </div>
             {groupedUpcomingTasks.length > 0 ? groupedUpcomingTasks.map(group => (
               <div key={group.date} className="bg-white rounded-[1.5rem] lg:rounded-[4rem] border border-slate-100 overflow-hidden shadow-sm flex flex-col lg:flex-row mb-4 lg:mb-10">
                 <div className="w-full lg:w-72 bg-slate-50 p-4 lg:p-12 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 shrink-0">
@@ -316,16 +351,17 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex-1 p-4 lg:p-12 space-y-3 lg:space-y-8">
                   {group.tasks.map(task => (
-                    <div key={task.id} className="p-3 lg:p-10 bg-slate-50/50 rounded-xl lg:rounded-[2.5rem] border border-slate-100 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-10 hover:border-indigo-200 transition-colors group">
+                    <div key={task.id} className="p-3 lg:p-10 bg-slate-50/50 rounded-xl lg:rounded-[2.5rem] border border-slate-100 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-10 group">
                       <div className="flex flex-col lg:items-center lg:justify-center lg:border-r lg:border-slate-100 lg:pr-10 shrink-0"><span className="text-xs lg:text-2xl font-black text-indigo-600 tracking-tighter italic tabular-nums">{task.timeBlock}</span></div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-1 lg:mb-4 truncate">{task.title}</h4>
                         <div className="flex flex-wrap gap-2 lg:gap-8">
                           <div className="flex items-center gap-1 lg:gap-3 text-slate-500"><MapPin size={12} className="lg:w-6 lg:h-6" /><span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide truncate">{task.venue}</span></div>
-                          {task.attended && <div className="flex items-center gap-1 lg:gap-3 text-slate-500 border-l border-slate-100 pl-2 lg:pl-8"><UserCheck size={12} className="lg:w-6 lg:h-6" /><span className="text-[10px] lg:text-xl font-bold uppercase tracking-wide truncate">{task.attended}</span></div>}
                         </div>
                       </div>
-                      <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-2 lg:p-6 bg-white border border-slate-100 rounded-lg lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all shrink-0 self-end lg:self-center"><ChevronRight size={18} className="lg:w-8 lg:h-8" /></button>
+                      {isAdmin && (
+                        <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="p-2 lg:p-6 bg-white border border-slate-100 rounded-lg lg:rounded-3xl text-indigo-600 shadow-sm active:scale-90 transition-all shrink-0 self-end lg:self-center"><ChevronRight size={18} className="lg:w-8 lg:h-8" /></button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -333,7 +369,9 @@ const App: React.FC = () => {
             )) : <div className="flex-1 flex flex-col items-center justify-center py-10 bg-white rounded-[2rem] border-2 border-dashed border-slate-100"><p className="text-sm lg:text-3xl font-black text-slate-200 uppercase italic">No Future Sessions</p></div>}
           </div>
         ) : activeTab === Tab.WELCOME ? (
-          <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar"><WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => await storageService.saveWelcomeTask(wt)} onStart={(id) => storageService.setWelcomeActive(id, true)} onStop={() => storageService.setWelcomeActive('', false)} onDelete={(id) => storageService.deleteWelcomeTask(id)} /></div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-1 lg:px-12 custom-scrollbar">
+            <WelcomeTab tasks={welcomeTasks} onAdd={async (wt) => isAdmin ? await storageService.saveWelcomeTask(wt) : false} onStart={(id) => isAdmin && storageService.setWelcomeActive(id, true)} onStop={() => isAdmin && storageService.setWelcomeActive('', false)} onDelete={(id) => isAdmin && storageService.deleteWelcomeTask(id)} isAdmin={isAdmin} />
+          </div>
         ) : (
           <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center p-4">
             <div className="bg-white p-6 lg:p-20 rounded-[2rem] lg:rounded-[5rem] shadow-2xl border border-slate-50 w-full text-center">
@@ -341,14 +379,20 @@ const App: React.FC = () => {
                  <div className="w-12 h-12 lg:w-28 lg:h-28 bg-rose-50 text-rose-600 rounded-2xl lg:rounded-[2.5rem] flex items-center justify-center"><AlertCircle className="w-6 h-6 lg:w-16 lg:h-16" /></div>
                  <h3 className="text-sm lg:text-4xl font-black text-rose-600 uppercase tracking-[0.3em] lg:tracking-[0.6em]">Urgent Broadcast</h3>
               </div>
-              <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-4 lg:py-10 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-lg lg:text-5xl text-center leading-relaxed" placeholder="Content..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
-              <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-6 lg:mt-14 bg-rose-600 text-white font-black uppercase tracking-widest py-4 lg:py-12 rounded-xl lg:rounded-[3.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95 text-xs lg:text-2xl italic">Push Signal</button>
+              {isAdmin ? (
+                <>
+                  <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-4 lg:py-10 focus:border-rose-300 focus:bg-white transition-all outline-none font-bold text-lg lg:text-5xl text-center leading-relaxed" placeholder="Content..." rows={2} value={emergencyInput} onChange={(e) => setEmergencyInput(e.target.value)} />
+                  <button onClick={() => triggerEmergency(emergencyInput)} disabled={!emergencyInput.trim()} className="w-full mt-6 lg:mt-14 bg-rose-600 text-white font-black uppercase tracking-widest py-4 lg:py-12 rounded-xl lg:rounded-[3.5rem] shadow-xl hover:bg-rose-700 transition-all disabled:opacity-30 active:scale-95 text-xs lg:text-2xl italic">Push Signal</button>
+                </>
+              ) : (
+                <p className="text-xl font-bold text-slate-400">Viewers can monitor but not trigger broadcasts.</p>
+              )}
             </div>
           </div>
         )}
       </main>
 
-      {/* FOOTER - Fixed Height & Guaranteed Visibility with z-index and padding adjustments */}
+      {/* FOOTER */}
       <footer className="px-1 lg:px-24 bg-white border-t border-slate-200 flex justify-around lg:justify-center gap-0 lg:gap-24 shrink-0 no-capture z-[999] shadow-[0_-4px_30px_rgba(0,0,0,0.08)] safe-area-bottom h-20 lg:h-24">
         <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center justify-center gap-1.5 transition-all flex-1 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
           <LayoutDashboard className={`w-6 h-6 lg:w-7 lg:h-7 ${activeTab === Tab.TASKS ? 'stroke-[2.5px]' : 'stroke-2'}`} />
@@ -368,7 +412,7 @@ const App: React.FC = () => {
         </button>
       </footer>
 
-      {isModalOpen && <TaskModal task={editingTask} onClose={() => { setIsModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} onDelete={handleDeleteTask} />}
+      {isModalOpen && isAdmin && <TaskModal task={editingTask} onClose={() => { setIsModalOpen(false); setEditingTask(null); }} onSave={handleSaveTask} onDelete={handleDeleteTask} />}
       {isSearchOpen && (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col p-4 lg:p-24 animate-in slide-in-from-top duration-500">
           <div className="flex justify-between items-center mb-6 w-full max-w-7xl mx-auto">
@@ -378,17 +422,11 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
             <input type="text" placeholder="Search..." className="w-full bg-slate-50 border-2 lg:border-[4px] border-slate-100 rounded-xl lg:rounded-[3rem] px-4 lg:px-14 py-4 lg:py-14 text-lg lg:text-6xl font-black outline-none focus:border-indigo-600 transition-all mb-6 shadow-2xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 lg:gap-8 pb-10 custom-scrollbar">
-              {searchResults.length > 0 ? searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} /></div>) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
+              {searchResults.length > 0 ? searchResults.map(t => <div key={t.id} className="min-h-max"><TaskCard task={t} status={t.date === getTodayString() ? TaskStatus.ACTIVE : TaskStatus.UPCOMING} onEdit={(task) => isAdmin && { setEditingTask(task); setIsModalOpen(true); setIsSearchOpen(false); }} onDelete={handleDeleteTask} isAdmin={isAdmin} /></div>) : searchQuery && <p className="text-center text-slate-200 font-black uppercase italic">No Matches</p>}
             </div>
           </div>
         </div>
       )}
-      
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      `}</style>
     </div>
   );
 };
