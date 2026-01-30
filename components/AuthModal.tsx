@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { UserRole } from '../types';
-import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy, Check, Info, RefreshCw } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy, Check, Info, RefreshCw, Shield, Eye } from 'lucide-react';
 
 const AuthModal: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.VIEWER);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -38,7 +39,7 @@ const AuthModal: React.FC = () => {
       if (isLogin) {
         await authService.signIn(email, password);
       } else {
-        await authService.signUp(email, password);
+        await authService.signUp(email, password, selectedRole);
       }
     } catch (err: any) {
       setError(formatErrorMessage(err));
@@ -51,7 +52,7 @@ const AuthModal: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      await authService.signInWithGoogle(!isLogin);
+      await authService.signInWithGoogle(!isLogin, selectedRole);
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(formatErrorMessage(err));
@@ -152,6 +153,28 @@ const AuthModal: React.FC = () => {
         )}
 
         <div className="space-y-4">
+          {!isLogin && (
+            <div className="mb-4">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Select Access Level</label>
+              <div className="flex p-1 bg-slate-50 rounded-2xl border border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => setSelectedRole(UserRole.VIEWER)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${selectedRole === UserRole.VIEWER ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                >
+                  <Eye size={14} /> Viewer
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setSelectedRole(UserRole.ADMIN)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${selectedRole === UserRole.ADMIN ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                >
+                  <Shield size={14} /> Admin
+                </button>
+              </div>
+            </div>
+          )}
+
           <button 
             onClick={handleGoogleSignIn}
             disabled={loading}
