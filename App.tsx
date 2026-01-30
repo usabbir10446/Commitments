@@ -14,7 +14,7 @@ import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
 import AuthModal from './components/AuthModal';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight, LogOut } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight, LogOut, Download, CheckCircle2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -28,6 +28,8 @@ const App: React.FC = () => {
   const [emergencies, setEmergencies] = useState<EmergencyMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  const [selectedCaptureDate, setSelectedCaptureDate] = useState(getTodayString());
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -93,15 +95,21 @@ const App: React.FC = () => {
   const handleCapture = async () => {
     if (!reportRef.current) return;
     setIsCapturing(true);
+    
+    // Temporarily switch viewDate to the selected capture date so the hidden report populates
+    const previousViewDate = viewDate;
+    setViewDate(selectedCaptureDate);
+    setIsDateModalOpen(false);
+
     try {
-      // Ensure fonts and images are loaded
-      await new Promise(r => setTimeout(r, 500));
+      // Ensure re-render and fonts are loaded
+      await new Promise(r => setTimeout(r, 600));
       const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
         scale: 2, 
         backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: 1200,
+        windowWidth: 1000,
         onclone: (clonedDoc) => {
           const el = clonedDoc.getElementById('hidden-report-container');
           if (el) el.style.left = '0';
@@ -109,7 +117,7 @@ const App: React.FC = () => {
       });
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error("Canvas to Blob failed");
-      const filename = `CMT_Report_${viewDate}.png`;
+      const filename = `CMT_Report_${selectedCaptureDate}.png`;
       const file = new File([blob], filename, { type: 'image/png' });
       
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -117,7 +125,7 @@ const App: React.FC = () => {
           await navigator.share({
             files: [file],
             title: 'Daily CMT Report',
-            text: `Schedule for ${viewDate}`,
+            text: `Schedule for ${selectedCaptureDate}`,
           });
         } catch (shareErr: any) {
           if (shareErr.name !== 'AbortError') downloadCanvas(canvas, filename);
@@ -129,6 +137,8 @@ const App: React.FC = () => {
       console.error("Capture failed:", err);
     } finally {
       setIsCapturing(false);
+      // Restore previous view date
+      setViewDate(previousViewDate);
     }
   };
 
@@ -347,7 +357,7 @@ const App: React.FC = () => {
         <div className="flex items-center justify-end gap-1.5 lg:gap-4 shrink-0 no-capture min-w-0">
            {isAdmin && (
              <>
-               <button onClick={handleCapture} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50 shrink-0">
+               <button onClick={() => setIsDateModalOpen(true)} disabled={isCapturing} title="Screenshot & Share" className="w-8 h-8 lg:w-12 lg:h-12 bg-white border border-slate-100 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90 disabled:opacity-50 shrink-0">
                  {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} className="lg:w-6 lg:h-6" />}
                </button>
                <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="px-2 lg:px-6 py-2 lg:py-3.5 bg-indigo-600 text-white font-black text-[8px] lg:text-[10px] uppercase tracking-wider rounded-lg lg:rounded-xl hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center gap-1 shrink-0">
@@ -364,6 +374,61 @@ const App: React.FC = () => {
            </button>
         </div>
       </header>
+
+      {/* DATE SELECTION MODAL FOR SCREENSHOT */}
+      {isDateModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-xl p-4 animate-in fade-in duration-300">
+           <div className="bg-white w-full max-w-md rounded-[3rem] p-8 lg:p-12 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border border-slate-50 relative animate-in zoom-in-95">
+              <button onClick={() => setIsDateModalOpen(false)} className="absolute top-8 right-8 p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-100"><X size={24} /></button>
+              
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-6">
+                  <Camera size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Report Generation</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">Choose specific date for export</p>
+              </div>
+
+              <div className="space-y-6">
+                 <div>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Target Schedule Date</label>
+                   <div className="relative">
+                      <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400" size={20} />
+                      <input 
+                        type="date" 
+                        value={selectedCaptureDate}
+                        onChange={(e) => setSelectedCaptureDate(e.target.value)}
+                        className="w-full bg-slate-50 border-4 border-transparent focus:border-indigo-100 rounded-2xl pl-16 pr-6 py-5 outline-none font-black text-lg transition-all"
+                      />
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => setSelectedCaptureDate(getTodayString())}
+                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedCaptureDate === getTodayString() ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-100 text-slate-400'}`}
+                    >
+                      Today
+                    </button>
+                    <button 
+                      onClick={() => setSelectedCaptureDate(getTomorrowString())}
+                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${selectedCaptureDate === getTomorrowString() ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-100 text-slate-400'}`}
+                    >
+                      Tomorrow
+                    </button>
+                 </div>
+
+                 <button 
+                   onClick={handleCapture}
+                   disabled={isCapturing}
+                   className="w-full bg-indigo-600 text-white font-black py-6 rounded-[2rem] shadow-xl shadow-indigo-100 uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all mt-4"
+                 >
+                   {isCapturing ? <Loader2 className="animate-spin" size={20} /> : <><Download size={20} /> <span>Generate CMT Report</span></>}
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
 
       <main className="flex-1 p-2 lg:p-12 overflow-hidden min-h-0">
         {activeTab === Tab.TASKS ? (
