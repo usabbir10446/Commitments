@@ -1,6 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-// Added Plus to the imports from lucide-react
-import { X, Save, Trash2, AlertCircle, Plus } from 'lucide-react';
+import { X, Save, Trash2, AlertCircle, Plus, MapPin } from 'lucide-react';
 import { Task } from '../types';
 import { getTomorrowString } from '../utils/time';
 
@@ -11,11 +11,26 @@ interface TaskModalProps {
   onDelete: (id: string) => void;
 }
 
+const PREDEFINED_VENUES = [
+  "Comdt's Office",
+  "Conf Room-1",
+  "MPTH",
+  "Hybrid Class Room",
+  "Call on Room",
+  "BIPSOT Offrs Mess",
+  "BIPSOT Trg Grd",
+  "Helipad",
+  "Academic Bldg Mini Auditorium"
+];
+
 const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave, onDelete }) => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  const [selectedVenue, setSelectedVenue] = useState('');
+  const [manualVenue, setManualVenue] = useState('');
+
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
     venue: '',
@@ -33,6 +48,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave, onDelete }
         date: task.date,
         attended: task.attended || ''
       });
+
+      // Handle venue selection logic
+      if (PREDEFINED_VENUES.includes(task.venue)) {
+        setSelectedVenue(task.venue);
+        setManualVenue('');
+      } else {
+        setSelectedVenue('Other');
+        setManualVenue(task.venue);
+      }
+
       if (task.timeBlock) {
         const clean = task.timeBlock.replace(/hrs/gi, '').trim();
         const parts = clean.split('-');
@@ -51,8 +76,24 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave, onDelete }
       });
       setStartTime('');
       setEndTime('');
+      setSelectedVenue('');
+      setManualVenue('');
     }
   }, [task]);
+
+  const handleVenueChange = (val: string) => {
+    setSelectedVenue(val);
+    if (val !== 'Other') {
+      setFormData(prev => ({ ...prev, venue: val }));
+    } else {
+      setFormData(prev => ({ ...prev, venue: manualVenue }));
+    }
+  };
+
+  const handleManualVenueChange = (val: string) => {
+    setManualVenue(val);
+    setFormData(prev => ({ ...prev, venue: val }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,16 +154,44 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onSave, onDelete }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Target Date</label>
               <input type="date" required className="w-full bg-slate-50 border-4 border-transparent rounded-2xl px-6 py-4 focus:border-indigo-100 focus:bg-white transition-all outline-none font-bold text-sm" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
             </div>
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Venue / Platform</label>
-              <input type="text" required className="w-full bg-slate-50 border-4 border-transparent rounded-2xl px-6 py-4 focus:border-indigo-100 focus:bg-white transition-all outline-none font-bold text-sm placeholder:text-slate-200" placeholder="e.g. Hall A" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} />
+              <select 
+                required 
+                className="w-full bg-slate-50 border-4 border-transparent rounded-2xl px-6 py-4 focus:border-indigo-100 focus:bg-white transition-all outline-none font-bold text-sm appearance-none"
+                value={selectedVenue}
+                onChange={e => handleVenueChange(e.target.value)}
+              >
+                <option value="" disabled>Select Venue</option>
+                {PREDEFINED_VENUES.map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
             </div>
           </div>
+
+          {selectedVenue === 'Other' && (
+            <div className="animate-in slide-in-from-top-2 duration-300">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Manual Venue Entry</label>
+              <div className="relative">
+                <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full bg-slate-50 border-4 border-transparent rounded-2xl pl-14 pr-6 py-4 focus:border-indigo-100 focus:bg-white transition-all outline-none font-bold text-sm placeholder:text-slate-200" 
+                  placeholder="Enter custom venue..." 
+                  value={manualVenue} 
+                  onChange={e => handleManualVenueChange(e.target.value)} 
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Attendees / Required Presence</label>
