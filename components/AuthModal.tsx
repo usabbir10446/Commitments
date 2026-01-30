@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { UserRole } from '../types';
-import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy, Check } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Loader2, Activity, AlertCircle, Globe, Copy, Check, Info } from 'lucide-react';
 
 const AuthModal: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,7 +14,6 @@ const AuthModal: React.FC = () => {
   const [currentHostname, setCurrentHostname] = useState('');
 
   useEffect(() => {
-    // Capture hostname on mount to ensure it's available for the error message
     setCurrentHostname(window.location.hostname || 'localhost');
   }, []);
 
@@ -23,7 +22,7 @@ const AuthModal: React.FC = () => {
     const errorMsg = err.message || '';
     
     if (errorCode === 'auth/unauthorized-domain' || errorMsg.includes('unauthorized-domain')) {
-      return `SECURITY BLOCK: Unauthorized Domain Detected.\n\nYour Firebase project "cmtbipsot" does not recognize this web address yet.`;
+      return `SECURITY BLOCK: Unauthorized Domain Detected.`;
     }
     if (errorMsg.includes('No acct found')) {
       return "No acct found. You need to create a new acct sir.";
@@ -102,11 +101,11 @@ const AuthModal: React.FC = () => {
             </div>
 
             {isDomainError && (
-              <div className="mt-2 space-y-3">
+              <div className="mt-2 space-y-4">
                 <div className="p-3 bg-white border border-rose-200 rounded-xl shadow-inner">
-                  <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-2">1. Copy this domain:</p>
+                  <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-2">Detected Hostname:</p>
                   <div className="flex items-center justify-between gap-2">
-                    <code className="text-[11px] font-mono font-black text-slate-800 break-all bg-slate-100 px-2 py-1 rounded">
+                    <code className="text-[12px] font-mono font-black text-slate-800 break-all bg-slate-100 px-2 py-1 rounded">
                       {currentHostname}
                     </code>
                     <button 
@@ -118,9 +117,22 @@ const AuthModal: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-rose-800 uppercase flex items-center gap-1">
+                    <Info size={12} /> Checklist for project "cmtbipsot":
+                  </p>
+                  <ul className="text-[10px] font-medium text-rose-700 space-y-1 ml-4 list-disc">
+                    <li>Add <span className="font-bold">{currentHostname}</span> to Authorized Domains.</li>
+                    <li>If on localhost, also add <span className="font-bold">127.0.0.1</span>.</li>
+                    <li>Ensure <span className="font-bold">no "http://"</span> prefix is included in the list.</li>
+                    <li>Wait ~60 seconds for Firebase to propagate the changes.</li>
+                  </ul>
+                </div>
+
                 <div className="p-3 bg-rose-100/50 rounded-xl">
                   <p className="text-[9px] font-bold text-rose-800 leading-tight">
-                    2. Go to <span className="font-black">Firebase Console</span> &rarr; <span className="font-black">Auth</span> &rarr; <span className="font-black">Settings</span> &rarr; <span className="font-black">Authorized Domains</span> and add the copied address.
+                    Go to <span className="font-black underline">console.firebase.google.com</span> &rarr; Auth &rarr; Settings &rarr; Authorized Domains.
                   </p>
                 </div>
               </div>
