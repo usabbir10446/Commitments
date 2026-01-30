@@ -304,8 +304,17 @@ const App: React.FC = () => {
                       <span className="uppercase">{task.venue}</span>
                     </div>
                   </div>
+                  
+                  {/* ATTENDEES (ATND) SECTION - ADDED AS PER REQUEST */}
+                  {task.attended && (
+                    <div className="shrink-0 text-right px-8 border-l-2 border-slate-200">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Atnd</p>
+                      <p className="text-2xl font-black text-slate-900 uppercase italic leading-tight">{task.attended}</p>
+                    </div>
+                  )}
+
                   {task.status === TaskStatus.ACTIVE && (
-                     <div className="px-5 py-2 bg-emerald-100 border-2 border-emerald-400 rounded-full">
+                     <div className="px-5 py-2 bg-emerald-100 border-2 border-emerald-400 rounded-full shrink-0">
                        <span className="text-emerald-700 font-black text-xs uppercase tracking-widest">Active</span>
                      </div>
                   )}
