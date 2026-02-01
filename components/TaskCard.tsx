@@ -51,7 +51,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
             </h3>
 
             <div className="space-y-2 lg:space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-8 mb-3 lg:mb-8">
                 <div className="flex items-start gap-2.5 lg:gap-6 bg-white/60 p-3 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
                   <MapPin className="text-emerald-500 mt-1 shrink-0 w-4 h-4 lg:w-8 lg:h-8" strokeWidth={2.5} />
                   <div className="min-w-0">
@@ -59,6 +59,16 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
                     <p className="text-xs lg:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">{task.venue}</p>
                   </div>
                 </div>
+
+                {task.attended && (
+                  <div className="flex items-start gap-2.5 lg:gap-6 bg-white/60 p-3 lg:p-8 rounded-xl lg:rounded-[2.5rem] border border-emerald-100 shadow-sm">
+                    <UserCheck className="text-emerald-500 mt-1 shrink-0 w-4 h-4 lg:w-8 lg:h-8" strokeWidth={2.5} />
+                    <div className="min-w-0">
+                      <p className="text-[6px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">ATTENDEES</p>
+                      <p className="text-xs lg:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">{task.attended}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {task.remarks && (
@@ -124,6 +134,20 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, status, isNextUpcoming, onEdi
             <MapPin className="text-indigo-300 w-2 h-2 lg:w-4 lg:h-4" />
             <span className="text-[7px] lg:text-sm font-bold uppercase tracking-wide truncate">{task.venue}</span>
           </div>
+          
+          {task.attended && (
+            <div className="flex items-center gap-1 min-w-0">
+              <UserCheck className="text-indigo-300 w-2 h-2 lg:w-4 lg:h-4" />
+              <span className="text-[7px] lg:text-sm font-bold uppercase tracking-wide truncate">{task.attended}</span>
+            </div>
+          )}
+
+          {task.remarks && (
+            <div className="flex items-center gap-1 min-w-0">
+              <FileText className="text-indigo-300 w-2 h-2 lg:w-4 lg:h-4" />
+              <span className="text-[7px] lg:text-sm font-medium italic truncate">{task.remarks}</span>
+            </div>
+          )}
         </div>
       </div>
 
