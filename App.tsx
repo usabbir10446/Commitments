@@ -299,10 +299,17 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-3xl font-black text-slate-900 uppercase mb-2">{task.title}</h3>
-                    <div className="flex items-center gap-3 text-xl font-bold text-slate-500">
+                    <div className="flex items-center gap-3 text-xl font-bold text-slate-500 mb-2">
                       <MapPin size={24} />
                       <span className="uppercase">{task.venue}</span>
                     </div>
+                    {/* ADDITIONAL PARTICULARS (REMARKS) - ADDED AS PER REQUEST */}
+                    {task.remarks && (
+                      <div className="flex items-start gap-3 text-lg font-medium text-slate-400 italic">
+                        <FileText size={20} className="mt-1 shrink-0" />
+                        <span>{task.remarks}</span>
+                      </div>
+                    )}
                   </div>
                   
                   {/* ATTENDEES (ATND) SECTION - ADDED AS PER REQUEST */}
