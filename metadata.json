@@ -1,5 +1,6 @@
 {
   "name": "Daily Cmt",
   "description": "A high-fidelity real-time dashboard for task scheduling, highlighting active sessions with custom branding and global emergency broadcasting.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

@@ -101,9 +101,47 @@ const App: React.FC = () => {
     setViewDate(selectedCaptureDate);
     setIsDateModalOpen(false);
 
+    let restoreStyleSheets: (() => void) | null = null;
+
     try {
       // Ensure re-render and fonts are loaded
       await new Promise(r => setTimeout(r, 600));
+
+      // Sanitize style tags to prevent html2canvas CSSParser crashes on empty var fallbacks e.g. var(--name, )
+      try {
+        const styleElements = Array.from(document.querySelectorAll('style'));
+        const backups = styleElements.map(el => ({
+          element: el,
+          originalText: el.textContent || el.innerHTML || ''
+        }));
+
+        styleElements.forEach(el => {
+          let text = el.textContent || el.innerHTML || '';
+          if (text) {
+            const cleanedText = text.replace(/var\(\s*(--[\w-]+)\s*,\s*\)/g, 'var($1)');
+            if (cleanedText !== text) {
+              if (el.textContent !== undefined) {
+                el.textContent = cleanedText;
+              } else {
+                el.innerHTML = cleanedText;
+              }
+            }
+          }
+        });
+
+        restoreStyleSheets = () => {
+          backups.forEach(({ element, originalText }) => {
+            if (element.textContent !== undefined) {
+              element.textContent = originalText;
+            } else {
+              element.innerHTML = originalText;
+            }
+          });
+        };
+      } catch (sanitizeErr) {
+        console.warn("Failed to sanitize style tags:", sanitizeErr);
+      }
+
       const canvas = await html2canvas(reportRef.current, {
         useCORS: true,
         scale: 2, 
@@ -136,6 +174,13 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Capture failed:", err);
     } finally {
+      if (restoreStyleSheets) {
+        try {
+          restoreStyleSheets();
+        } catch (restoreErr) {
+          console.warn("Failed to restore style tags:", restoreErr);
+        }
+      }
       setIsCapturing(false);
       // Restore previous view date
       setViewDate(previousViewDate);
@@ -312,11 +357,11 @@ const App: React.FC = () => {
                     )}
                   </div>
                   
-                  {/* ATTENDEES (ATND) SECTION - ADDED AS PER REQUEST */}
+                  {/* ATTENDEES (ATND) SECTION - REARRANGED FOR PROFESSIONAL OUTLOOK */}
                   {task.attended && (
-                    <div className="shrink-0 text-right px-8 border-l-2 border-slate-200">
+                    <div className="w-[260px] text-left pl-8 border-l-2 border-slate-200 shrink-0 self-stretch flex flex-col justify-center">
                       <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Atnd</p>
-                      <p className="text-2xl font-black text-slate-900 uppercase italic leading-tight">{task.attended}</p>
+                      <p className="text-xl font-black text-slate-800 uppercase italic leading-tight break-words">{task.attended}</p>
                     </div>
                   )}
 

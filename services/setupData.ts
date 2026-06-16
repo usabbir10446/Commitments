@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, limit } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { getTodayString, getTomorrowString } from '../utils/time';
 
@@ -8,13 +8,23 @@ import { getTodayString, getTomorrowString } from '../utils/time';
  */
 export const initializeDatabase = async () => {
   try {
+    // Implement robust initialization tracking using a dedicated system_config collection
+    const sysConfigRef = doc(db, 'system_config', 'status');
+    const sysConfigSnap = await getDoc(sysConfigRef);
+    if (sysConfigSnap.exists() && sysConfigSnap.data()?.initialized === true) {
+      return { success: true, message: "Database already initialized." };
+    }
+
     const tasksRef = collection(db, 'tasks');
     const welcomeRef = collection(db, 'welcome_tasks');
     const emergencyRef = collection(db, 'emergencies');
 
-    // Check if tasks already exist to avoid duplicates
+    // Backward compatibility/safety check: if tasks exist, mark as initialized and exit
     const taskCheck = await getDocs(query(tasksRef, limit(1)));
-    if (!taskCheck.empty) return { success: true, message: "Database already initialized." };
+    if (!taskCheck.empty) {
+      await setDoc(sysConfigRef, { initialized: true });
+      return { success: true, message: "Database already initialized." };
+    }
 
     // 1. Seed Sample Tasks
     const sampleTasks = [
@@ -63,6 +73,9 @@ export const initializeDatabase = async () => {
       text: "System is now online and syncing with Firebase Realtime Database.",
       createdAt: Date.now()
     });
+
+    // Mark as initialized so we NEVER override user data in the future
+    await setDoc(sysConfigRef, { initialized: true });
 
     return { success: true, message: "Database seeded successfully!" };
   } catch (error) {

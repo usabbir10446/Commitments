@@ -2,13 +2,62 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    /**
-     * UNIVERSAL ACCESS (DEVELOPMENT ONLY)
-     * Paste this snippet into the "Rules" tab of your Firebase Cloud Firestore console.
-     * This allows the app to communicate with your project immediately.
-     */
+    
+    // Default deny safeguard
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Helper functions for zero-trust authorization
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'usubbir.photos@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // tasks collection
+    match /tasks/{taskId} {
+      allow read: if true; // Public display can read
+      allow write: if isBootstrappedAdmin();
+    }
+
+    // emergencies collection
+    match /emergencies/{emergencyId} {
+      allow read: if true;
+      allow write: if isBootstrappedAdmin();
+    }
+
+    // welcome_tasks collection
+    match /welcome_tasks/{welcomeTaskId} {
+      allow read: if true;
+      allow write: if isBootstrappedAdmin();
+    }
+
+    // system_config collection
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if isBootstrappedAdmin();
+    }
+
+    // users collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isBootstrappedAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        // Only allow selecting viewer unless they are the bootstrapped admin email
+        request.resource.data.role == 'viewer' || 
+        request.auth.token.email == 'usubbir.photos@gmail.com'
+      );
+      allow update: if isSignedIn() && (
+        isBootstrappedAdmin() || 
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isBootstrappedAdmin();
     }
   }
 }
