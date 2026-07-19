@@ -43,25 +43,44 @@ export const formatFriendlyDate = (date: Date): string => {
 
 export const formatBanglaDate = (date: Date): string => {
   const day = date.getDate();
-  const month = date.getMonth();
+  const month = date.getMonth(); // 0-indexed: 0 = Jan, ..., 11 = Dec
   const year = date.getFullYear();
   const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
   const banglaMonths = ['বৈশাখ', 'জ্যৈষ্ঠ', 'আষাঢ়', 'শ্রাবণ', 'ভাদ্র', 'আশ্বিন', 'কার্তিক', 'অগ্রহায়ণ', 'পৌষ', 'মাঘ', 'ফাল্গুন', 'চৈত্র'];
   const banglaNumbers = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   const toBanglaNum = (num: number): string => num.toString().split('').map(d => banglaNumbers[parseInt(d)]).join('');
-  let bMonthIndex = 0; let bDay = 1; let bYear = year - 593;
-  if (month === 3) { if (day < 14) { bMonthIndex = 11; bDay = day + 17; } else { bMonthIndex = 0; bDay = day - 13; } }
-  else if (month === 4) { if (day < 15) { bMonthIndex = 0; bDay = day + 17; } else { bMonthIndex = 1; bDay = day - 14; } }
-  else if (month === 5) { if (day < 16) { bMonthIndex = 1; bDay = day + 16; } else { bMonthIndex = 2; bDay = day - 15; } }
-  else if (month === 6) { if (day < 17) { bMonthIndex = 2; bDay = day + 15; } else { bMonthIndex = 3; bDay = day - 16; } }
-  else if (month === 7) { if (day < 17) { bMonthIndex = 3; bDay = day + 15; } else { bMonthIndex = 4; bDay = day - 16; } }
-  else if (month === 8) { if (day < 17) { bMonthIndex = 4; bDay = day + 15; } else { bMonthIndex = 5; bDay = day - 16; } }
-  else if (month === 9) { if (day < 17) { bMonthIndex = 5; bDay = day + 15; } else { bMonthIndex = 6; bDay = day - 16; } }
-  else if (month === 10) { if (day < 16) { bMonthIndex = 6; bDay = day + 15; } else { bMonthIndex = 7; bDay = day - 15; } }
-  else if (month === 11) { if (day < 16) { bMonthIndex = 7; bDay = day + 15; } else { bMonthIndex = 8; bDay = day - 15; } }
-  else if (month === 0) { if (day < 15) { bMonthIndex = 8; bDay = day + 16; } else { bMonthIndex = 9; bDay = day - 14; } }
-  else if (month === 1) { if (day < 14) { bMonthIndex = 9; bDay = day + 17; } else { bMonthIndex = 10; bDay = day - 13; } }
-  else if (month === 2) { const transDay = isLeapYear ? 16 : 15; if (day < transDay) { bMonthIndex = 10; bDay = day + 15 + (isLeapYear ? 1 : 0); } else { bMonthIndex = 11; bDay = day - 14; } }
+  
+  let bMonthIndex = 0;
+  let bDay = 1;
+  const bYear = (month < 3 || (month === 3 && day < 14)) ? year - 594 : year - 593;
+
+  if (month === 0) { // January
+    if (day < 15) { bMonthIndex = 8; bDay = day + 16; } else { bMonthIndex = 9; bDay = day - 14; }
+  } else if (month === 1) { // February
+    if (day < 14) { bMonthIndex = 9; bDay = day + 17; } else { bMonthIndex = 10; bDay = day - 13; }
+  } else if (month === 2) { // March
+    const chaitraStartDay = isLeapYear ? 15 : 16;
+    if (day < chaitraStartDay) { bMonthIndex = 10; bDay = day + (isLeapYear ? 16 : 15); } else { bMonthIndex = 11; bDay = day - chaitraStartDay + 1; }
+  } else if (month === 3) { // April
+    if (day < 14) { bMonthIndex = 11; bDay = day + (isLeapYear ? 17 : 16); } else { bMonthIndex = 0; bDay = day - 13; }
+  } else if (month === 4) { // May
+    if (day < 15) { bMonthIndex = 0; bDay = day + 17; } else { bMonthIndex = 1; bDay = day - 14; }
+  } else if (month === 5) { // June
+    if (day < 15) { bMonthIndex = 1; bDay = day + 17; } else { bMonthIndex = 2; bDay = day - 14; }
+  } else if (month === 6) { // July
+    if (day < 16) { bMonthIndex = 2; bDay = day + 16; } else { bMonthIndex = 3; bDay = day - 15; }
+  } else if (month === 7) { // August
+    if (day < 16) { bMonthIndex = 3; bDay = day + 16; } else { bMonthIndex = 4; bDay = day - 15; }
+  } else if (month === 8) { // September
+    if (day < 16) { bMonthIndex = 4; bDay = day + 16; } else { bMonthIndex = 5; bDay = day - 15; }
+  } else if (month === 9) { // October
+    if (day < 17) { bMonthIndex = 5; bDay = day + 15; } else { bMonthIndex = 6; bDay = day - 16; }
+  } else if (month === 10) { // November
+    if (day < 16) { bMonthIndex = 6; bDay = day + 15; } else { bMonthIndex = 7; bDay = day - 15; }
+  } else if (month === 11) { // December
+    if (day < 16) { bMonthIndex = 7; bDay = day + 15; } else { bMonthIndex = 8; bDay = day - 15; }
+  }
+
   return `${toBanglaNum(bDay)} ${banglaMonths[bMonthIndex]}, ${toBanglaNum(bYear)} বঙ্গাব্দ`;
 };
 
