@@ -40,7 +40,8 @@ export enum Tab {
   TASKS = 'tasks',
   UPCOMING = 'upcoming',
   WELCOME = 'welcome',
-  EMERGENCY = 'emergency'
+  EMERGENCY = 'emergency',
+  SETTINGS = 'settings'
 }
 
 export enum TaskStatus {
@@ -48,3 +49,32 @@ export enum TaskStatus {
   UPCOMING = 'upcoming',
   COMPLETED = 'completed'
 }
+
+export type SignatureMode = 'none' | 'draw' | 'upload' | 'typed';
+export type SignatureFontStyle = 'dancing' | 'great-vibes' | 'serif-italic';
+
+export interface ReportSettings {
+  commitmentHeading: string;
+  signatureEnabled: boolean;
+  signatureGreeting: string;
+  signatureName: string;
+  signatureDesignation: string;
+  signatureOrganization: string;
+  signatureMode: SignatureMode;
+  signatureImageData: string;
+  signatureFontStyle: SignatureFontStyle;
+  updatedAt?: number;
+}
+
+export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
+  commitmentHeading: 'CMT of Respected Comdt',
+  signatureEnabled: true,
+  signatureGreeting: 'Kind Regards,',
+  signatureName: 'Capt Usabbir',
+  signatureDesignation: 'GSO-3 (Coord)',
+  signatureOrganization: 'BIPSOT',
+  signatureMode: 'none',
+  signatureImageData: '',
+  signatureFontStyle: 'dancing'
+};
+

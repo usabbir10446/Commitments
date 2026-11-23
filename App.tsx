@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask, UserRole, UserProfile } from './types';
+import { Tab, Task, TaskStatus, EmergencyMessage, WelcomeTask, UserRole, UserProfile, ReportSettings, DEFAULT_REPORT_SETTINGS } from './types';
 import { storageService } from './services/storageService';
 import { authService } from './services/authService';
 import { initializeDatabase } from './services/setupData';
 import { getCurrentMinutesFromMidnight, parseTimeBlock, getTodayString, getTomorrowString, formatFriendlyDate, formatBanglaDate } from './utils/time';
 import { db } from './services/firebase';
-import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy, doc } from 'firebase/firestore';
 import LiveClock from './components/LiveClock';
 import TaskCard from './components/TaskCard';
 import TaskModal from './components/TaskModal';
 import EmergencyOverlay from './components/EmergencyOverlay';
 import WelcomeOverlay from './components/WelcomeOverlay';
 import WelcomeTab from './components/WelcomeTab';
+import SettingsTab, { getTypedSignatureClass } from './components/SettingsTab';
 import AuthModal from './components/AuthModal';
-import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight, LogOut, Download, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertCircle, Plus, Search, X, UserPlus, Activity, LayoutDashboard, Camera, Loader2, MapPin, UserCheck, FileText, Clock, ChevronRight, LogOut, Download, CheckCircle2, Settings } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   
   const [viewDate, setViewDate] = useState(getTodayString()); 
   const [searchQuery, setSearchQuery] = useState('');
+  const [reportSettings, setReportSettings] = useState<ReportSettings>(() => storageService.getLocalReportSettings());
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -82,12 +84,27 @@ const App: React.FC = () => {
       setActiveWelcome(list.find(w => w.isActive) || null);
     });
 
+    const unsubSettings = onSnapshot(doc(db, 'system_config', 'report_settings'), (snap) => {
+      if (snap.exists()) {
+        const merged = { ...DEFAULT_REPORT_SETTINGS, ...(snap.data() as Partial<ReportSettings>) };
+        setReportSettings(merged);
+        try {
+          localStorage.setItem('daily_cmt_report_settings', JSON.stringify(merged));
+        } catch {
+          // ignore storage quota errors
+        }
+      }
+    }, (err) => {
+      console.warn("Settings listener warning:", err);
+    });
+
     const timer = setInterval(() => setCurrentMinutes(getCurrentMinutesFromMidnight()), 10000);
 
     return () => {
       unsubTasks();
       unsubEmergencies();
       unsubWelcome();
+      unsubSettings();
       clearInterval(timer);
     };
   }, [currentUser]);
@@ -303,6 +320,11 @@ const App: React.FC = () => {
     if (isAdmin) storageService.deleteWelcomeTask(id);
   }, [isAdmin]);
 
+  const handleSaveReportSettings = useCallback(async (newSettings: ReportSettings) => {
+    setReportSettings(newSettings);
+    return await storageService.saveReportSettings(newSettings);
+  }, []);
+
   if (!authInitialized) return (
     <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
       <Loader2 className="animate-spin text-indigo-600" size={48} />
@@ -322,7 +344,7 @@ const App: React.FC = () => {
           {/* BEAUTIFUL HEADER */}
           <div className="text-center mb-10 pb-8 border-b-[6px] border-slate-900">
             <h1 className="text-6xl font-black text-slate-900 uppercase italic tracking-tighter mb-4">
-              CMT of Respected Comdt
+              {reportSettings.commitmentHeading || DEFAULT_REPORT_SETTINGS.commitmentHeading}
             </h1>
             <div className="flex flex-col items-center gap-2">
               <p className="text-3xl font-black text-indigo-600 uppercase italic">
@@ -386,14 +408,40 @@ const App: React.FC = () => {
                 <p className="text-xs font-black text-slate-300 uppercase tracking-[0.5em]">System Verified Report</p>
                 <p className="text-xs font-bold text-slate-400 mt-1 uppercase">Daily Cmt Intelligence • Security Protocol V2.1</p>
              </div>
-             <div className="text-right">
-                <p className="text-2xl font-bold text-slate-900 mb-2">Kind Regards,</p>
-                <div className="flex flex-col items-end">
-                  <p className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Capt Usabbir</p>
-                  <p className="text-xl font-black text-indigo-600 uppercase italic">GSO-3 (Coord)</p>
-                  <p className="text-2xl font-black text-slate-900 uppercase tracking-widest mt-1">BIPSOT</p>
-                </div>
-             </div>
+             {reportSettings.signatureEnabled && (
+               <div className="text-right">
+                  {reportSettings.signatureGreeting && (
+                    <p className="text-2xl font-bold text-slate-900 mb-2">{reportSettings.signatureGreeting}</p>
+                  )}
+                  {(reportSettings.signatureMode === 'draw' || reportSettings.signatureMode === 'upload') && reportSettings.signatureImageData && (
+                    <div className="my-3 flex justify-end">
+                      <img
+                        src={reportSettings.signatureImageData}
+                        alt="Digital Signature"
+                        className="h-24 max-w-[320px] object-contain"
+                      />
+                    </div>
+                  )}
+                  {reportSettings.signatureMode === 'typed' && reportSettings.signatureName && (
+                    <div className="my-2 flex justify-end">
+                      <span className={getTypedSignatureClass(reportSettings.signatureFontStyle)}>
+                        {reportSettings.signatureName}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-end">
+                    {reportSettings.signatureName && (
+                      <p className="text-3xl font-black text-slate-900 uppercase tracking-tighter">{reportSettings.signatureName}</p>
+                    )}
+                    {reportSettings.signatureDesignation && (
+                      <p className="text-xl font-black text-indigo-600 uppercase italic">{reportSettings.signatureDesignation}</p>
+                    )}
+                    {reportSettings.signatureOrganization && (
+                      <p className="text-2xl font-black text-slate-900 uppercase tracking-widest mt-1">{reportSettings.signatureOrganization}</p>
+                    )}
+                  </div>
+               </div>
+             )}
           </div>
         </div>
       </div>
@@ -477,6 +525,25 @@ const App: React.FC = () => {
                     >
                       Tomorrow
                     </button>
+                 </div>
+
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
+                   <div className="min-w-0">
+                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Heading</p>
+                     <p className="text-xs font-black text-slate-800 uppercase italic truncate">
+                       {reportSettings.commitmentHeading}
+                     </p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setIsDateModalOpen(false);
+                       setActiveTab(Tab.SETTINGS);
+                     }}
+                     className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:bg-indigo-50 transition-all shrink-0"
+                   >
+                     Edit
+                   </button>
                  </div>
 
                  <button 
@@ -579,7 +646,7 @@ const App: React.FC = () => {
               isAdmin={isAdmin} 
             />
           </div>
-        ) : (
+        ) : activeTab === Tab.EMERGENCY ? (
           <div className="max-w-5xl mx-auto w-full h-full flex items-center justify-center p-4">
             <div className="bg-white p-6 lg:p-20 rounded-[2rem] lg:rounded-[5rem] shadow-2xl border border-slate-50 w-full text-center">
               <div className="flex flex-col items-center gap-4 lg:gap-8 mb-6 lg:mb-16">
@@ -596,11 +663,17 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
+        ) : (
+          <SettingsTab
+            settings={reportSettings}
+            onSave={handleSaveReportSettings}
+            isAdmin={isAdmin}
+          />
         )}
       </main>
 
       {/* FOOTER */}
-      <footer className="px-1 lg:px-24 bg-white border-t border-slate-200 flex justify-around lg:justify-center gap-0 lg:gap-24 shrink-0 no-capture z-[999] shadow-[0_-4px_30px_rgba(0,0,0,0.08)] safe-area-bottom h-20 lg:h-24">
+      <footer className="px-1 lg:px-24 bg-white border-t border-slate-200 flex justify-around lg:justify-center gap-0 lg:gap-16 shrink-0 no-capture z-[999] shadow-[0_-4px_30px_rgba(0,0,0,0.08)] safe-area-bottom h-20 lg:h-24">
         <button onClick={() => setActiveTab(Tab.TASKS)} className={`flex flex-col items-center justify-center gap-1.5 transition-all flex-1 ${activeTab === Tab.TASKS ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
           <LayoutDashboard className={`w-6 h-6 lg:w-7 lg:h-7 ${activeTab === Tab.TASKS ? 'stroke-[2.5px]' : 'stroke-2'}`} />
           <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Dashboard</span>
@@ -616,6 +689,10 @@ const App: React.FC = () => {
         <button onClick={() => setActiveTab(Tab.EMERGENCY)} className={`flex flex-col items-center justify-center gap-1.5 transition-all flex-1 ${activeTab === Tab.EMERGENCY ? 'text-rose-600 scale-110' : 'text-slate-400'}`}>
           <AlertCircle className={`w-6 h-6 lg:w-7 lg:h-7 ${activeTab === Tab.EMERGENCY ? 'stroke-[2.5px]' : 'stroke-2'}`} />
           <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Emg Msg</span>
+        </button>
+        <button onClick={() => setActiveTab(Tab.SETTINGS)} className={`flex flex-col items-center justify-center gap-1.5 transition-all flex-1 ${activeTab === Tab.SETTINGS ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}>
+          <Settings className={`w-6 h-6 lg:w-7 lg:h-7 ${activeTab === Tab.SETTINGS ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+          <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">Settings</span>
         </button>
       </footer>
 

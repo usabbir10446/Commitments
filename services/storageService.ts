@@ -9,14 +9,18 @@ import {
   query, 
   orderBy, 
   where,
-  writeBatch
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Task, EmergencyMessage, WelcomeTask } from '../types';
+import { Task, EmergencyMessage, WelcomeTask, ReportSettings, DEFAULT_REPORT_SETTINGS } from '../types';
 
 const TASKS_COLLECTION = 'tasks';
 const EMERGENCIES_COLLECTION = 'emergencies';
 const WELCOME_COLLECTION = 'welcome_tasks';
+const SYSTEM_CONFIG_COLLECTION = 'system_config';
+const REPORT_SETTINGS_DOC_ID = 'report_settings';
+const LOCAL_SETTINGS_KEY = 'daily_cmt_report_settings';
 
 // Helper to remove undefined properties from an object for Firestore compatibility
 const cleanData = (data: any) => {
@@ -149,6 +153,60 @@ export const storageService = {
     } catch (error) {
       console.error("Error broadcasting emergency:", error);
       return null;
+    }
+  },
+
+  getLocalReportSettings: (): ReportSettings => {
+    try {
+      const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+      if (raw) {
+        return { ...DEFAULT_REPORT_SETTINGS, ...JSON.parse(raw) };
+      }
+    } catch (e) {
+      console.warn("Failed to read local report settings:", e);
+    }
+    return { ...DEFAULT_REPORT_SETTINGS };
+  },
+
+  getReportSettings: async (): Promise<ReportSettings> => {
+    try {
+      const docRef = doc(db, SYSTEM_CONFIG_COLLECTION, REPORT_SETTINGS_DOC_ID);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const merged = { ...DEFAULT_REPORT_SETTINGS, ...(snap.data() as Partial<ReportSettings>) };
+        try {
+          localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(merged));
+        } catch {
+          // ignore storage quota errors
+        }
+        return merged;
+      }
+    } catch (error) {
+      console.warn("Failed to fetch report settings from Firestore, falling back to local:", error);
+    }
+    return storageService.getLocalReportSettings();
+  },
+
+  saveReportSettings: async (settings: ReportSettings): Promise<{ success: boolean; syncedToCloud: boolean }> => {
+    const payload: ReportSettings = {
+      ...DEFAULT_REPORT_SETTINGS,
+      ...cleanData(settings),
+      updatedAt: Date.now()
+    };
+
+    try {
+      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn("Failed to cache report settings locally:", e);
+    }
+
+    try {
+      const docRef = doc(db, SYSTEM_CONFIG_COLLECTION, REPORT_SETTINGS_DOC_ID);
+      await setDoc(docRef, payload, { merge: true });
+      return { success: true, syncedToCloud: true };
+    } catch (error) {
+      console.error("Error saving report settings to Firestore:", error);
+      return { success: true, syncedToCloud: false };
     }
   }
 };
